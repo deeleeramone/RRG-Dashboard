@@ -8,16 +8,12 @@ def main():
     # pylint: disable=E1101,W0212
 
     cmdline = " ".join(sys.argv)
-    port = re.findall(r"--port=(\d+)", cmdline)
-    port = int(port[0]) if port else 8501
 
     flag_options = {
-        "server.port": port,
         "server.headless": True,
         "global.developmentMode": False,
-        "server.enableCORS": False,
+        "server.enableCORS": True,
         "server.enableXsrfProtection": False,
-        "browser.serverAddress": "localhost",
         "theme.base": "dark",
         "browser.gatherUsageStats": False,
         "client.showErrorDetails": False,
