@@ -1,2 +1,2 @@
-openbb-nightly
+openbb-nightly --editable
 streamlit
