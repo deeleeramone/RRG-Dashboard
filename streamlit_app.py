@@ -1,4 +1,5 @@
 import asyncio
+import nest_asyncio
 import importlib.util
 from datetime import datetime
 
@@ -6,6 +7,8 @@ import pandas as pd
 from openbb_core.app.utils import basemodel_to_df
 
 import streamlit as st
+
+nest_asyncio.apply()
 
 st.set_page_config(
     layout="wide",
@@ -243,5 +246,5 @@ def main():
             should not be used to make inferences or investment decisions.
         """)
 
-if __name__ == "__main__":
-    main()
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
