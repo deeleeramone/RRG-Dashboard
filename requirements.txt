@@ -1,0 +1,2 @@
+openbb-nightly
+streamlit
