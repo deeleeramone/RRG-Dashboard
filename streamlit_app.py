@@ -221,7 +221,7 @@ def main():
             days in a year and a month, respectively. These values can be changed in the sidebar.
     
             Realized volatility is calculated as the annualized standard deviation over a trailing 1-month period.
-            The default values of 252 and 21, respectively, can be changed in the sidebar.
+            The number of trading days per year and the rolling window can be adjusted in the sidebar.
     
             Values are normalized using the Z-Score Standardization method.
     
