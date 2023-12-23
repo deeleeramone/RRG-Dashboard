@@ -95,7 +95,7 @@ def get_data(
 #        ),  # type: ignore
 #    ]
     symbols_df = obb.equity.price.historical(symbols, start_date=Start_date, end_date=end_date, provider=provider)
-    benchmark_ = obb.equity.price.historical(symbols, start_date=Start_date, end_date=end_date, provider=provider)
+    benchmark_df = obb.equity.price.historical(symbols, start_date=Start_date, end_date=end_date, provider=provider)
     target_column = "volume" if study == "volume" else "close"
 #    symbols_df, benchmark_df = await asyncio.gather(*tasks)
     symbols_data = symbols_df.to_df()
