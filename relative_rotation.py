@@ -10,7 +10,7 @@ from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
 from openbb import obb
-from openbb_core.app.command_runner import CommandRunner
+#from openbb_core.app.command_runner import CommandRunner
 from openbb_core.app.utils import basemodel_to_df, df_to_basemodel
 from openbb_core.provider.abstract.data import Data
 from pandas import DataFrame, Series, to_datetime
