@@ -18,5 +18,9 @@ Realized volatility is calculated as the annualized standard deviation over a tr
 The default values of 252 and 21, respectively, can be changed in the sidebar.
 
 All calculations are from daily values from the source selected in the sidebar. It should not be assumed
-that volume represents 100% market coverage. This dashboard is for demonstration purposes only and
+that volume represents 100% market coverage.
+
+All values are normalized using the Z-Score Standardization method.
+
+This dashboard is for demonstration purposes only and
 should not be used to make inferences or investment decisions.
