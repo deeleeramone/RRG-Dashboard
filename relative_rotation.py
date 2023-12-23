@@ -9,8 +9,8 @@ from datetime import (
 from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
-from openbb import obb
-#from openbb_core.app.command_runner import CommandRunner
+#from openbb import obb
+from openbb_core.app.command_runner import CommandRunner
 from openbb_core.app.utils import basemodel_to_df, df_to_basemodel
 from openbb_core.provider.abstract.data import Data
 from pandas import DataFrame, Series, to_datetime
@@ -28,7 +28,7 @@ color_sequence = [
 ]
 
 
-def get_data(
+async def get_data(
     symbols: List[str],
     benchmark: str,
     study: Literal["price", "volume", "volatility"] = "price",
@@ -66,38 +66,36 @@ def get_data(
         start_date = (datetime.now() - timedelta(weeks=backfill)).date()
         end_date = datetime.now().date()
 
-#    tasks = [
-#        CommandRunner().run(
-#            "/equity/price/historical",
-#            provider_choices={
-#                "provider": provider,
-#            },
-#            standard_params={
-#                "symbol" : ",".join(symbols),
-#                "start_date": start_date,
-#                "end_date": end_date,
-#                "interval": "1d",
-#            },
-#            extra_params={"use_cache": False}
-#        ),  # type: ignore
-#        CommandRunner().run(
-#            "/equity/price/historical",
-#           provider_choices={
-#                "provider": provider,
-#            },
-#            standard_params={
-#                "symbol" : benchmark,
-#                "start_date": start_date,
-#                "end_date": end_date,
-#                "interval": "1d",
-#            },
-#            extra_params={"use_cache": False}
-#        ),  # type: ignore
-#    ]
-    symbols_df = obb.equity.price.historical(symbols, start_date=Start_date, end_date=end_date, provider=provider)
-    benchmark_df = obb.equity.price.historical(symbols, start_date=Start_date, end_date=end_date, provider=provider)
+    tasks = [
+        CommandRunner().run(
+            "/equity/price/historical",
+            provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : ",".join(symbols),
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        ),  # type: ignore
+        CommandRunner().run(
+            "/equity/price/historical",
+           provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : benchmark,
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        ),  # type: ignore
+    ]
     target_column = "volume" if study == "volume" else "close"
-#    symbols_df, benchmark_df = await asyncio.gather(*tasks)
+    symbols_df, benchmark_df = await asyncio.gather(*tasks)
     symbols_data = symbols_df.to_df()
     tickers = symbols_data["symbol"].unique().tolist()
     prices_data = DataFrame()
@@ -868,7 +866,7 @@ class RelativeRotationData(Data):
         return fig
 
 
-def create(
+async def create(
     symbols: Union[List[str], DataFrame, Data],
     benchmark: Union[str, DataFrame, Data],
     study: Optional[Literal["price", "volume", "volatility"]] = "price",
@@ -912,7 +910,7 @@ def create(
             tail_interval=tail_interval,
             provider=provider
         )
-        _fetch_data(self)
+        await _fetch_data(self)
 
     if (
         isinstance(symbols, Data)
@@ -963,10 +961,10 @@ def create(
 
     return self # type: ignore
 
-def _fetch_data(self):
+async def _fetch_data(self):
     """Fetch the data."""
 
-    df1, df2 = get_data(
+    df1, df2 = await get_data(
         symbols = self.symbols,
         benchmark = self.benchmark,
         study = self.study,
