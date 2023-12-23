@@ -1,2 +1,0 @@
-openbb-nightly --editable
-streamlit
