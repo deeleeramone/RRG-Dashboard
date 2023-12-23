@@ -119,25 +119,9 @@ date = date_input
 source = source_dict[source_input]
 
 
-def create(symbols, benchmark, study, date, long_period, short_period, window, trading_periods, tail_periods, tail_interval, provider):
-    result = asyncio.run(module.create(
-        symbols = symbols,
-        benchmark = benchmark,
-        study = study,
-        date = pd.to_datetime(date),
-        long_period = long_period,
-        short_period = short_period,
-        window = window,
-        trading_periods = trading_periods,
-        tail_periods = tail_periods,
-        tail_interval = tail_interval,
-        provider=provider
-    ))
-    return result
-
 if st.session_state.button_clicked:
     try:
-        rrg_data = asyncio.run(module.create(
+        rrg_data = module.create(
             symbols = symbols,
             benchmark = benchmark,
             study = study,
@@ -149,7 +133,7 @@ if st.session_state.button_clicked:
             tail_periods = tail_periods,
             tail_interval = tail_interval,
             provider=source,
-        ))
+        )
         st.session_state.rrg_data = rrg_data
         st.session_state.first_run = False
     except Exception:
