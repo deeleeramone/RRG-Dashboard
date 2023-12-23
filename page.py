@@ -17,9 +17,9 @@ st.set_page_config(
 symbols = []
 benchmark = ""
 STUDY_CHOICES = ["Price", "Volume", "Volatility"]
-SOURCE_CHOICES = ["Yahoo Finance", "Cboe", "FMP", "Polygon"]
+SOURCE_CHOICES = ["Yahoo Finance", "Cboe"]
 source_input = "Yahoo Finance"
-source_dict = {"Yahoo Finance": "yfinance","Cboe": "cboe", "FMP": "fmp", "Polygon": "polygon"}
+source_dict = {"Yahoo Finance": "yfinance","Cboe": "cboe"}
 source=source_dict[source_input]
 window_input = 21
 study = "price"
