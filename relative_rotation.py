@@ -9,6 +9,7 @@ from datetime import (
 from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
+from openbb import obb
 from openbb_core.app.command_runner import CommandRunner
 from openbb_core.app.utils import basemodel_to_df, df_to_basemodel
 from openbb_core.provider.abstract.data import Data
@@ -27,7 +28,7 @@ color_sequence = [
 ]
 
 
-async def get_data(
+def get_data(
     symbols: List[str],
     benchmark: str,
     study: Literal["price", "volume", "volatility"] = "price",
@@ -65,36 +66,9 @@ async def get_data(
         start_date = (datetime.now() - timedelta(weeks=backfill)).date()
         end_date = datetime.now().date()
 
-    tasks = [
-        CommandRunner().run(
-            "/equity/price/historical",
-            provider_choices={
-                "provider": provider,
-            },
-            standard_params={
-                "symbol" : ",".join(symbols),
-                "start_date": start_date,
-                "end_date": end_date,
-                "interval": "1d",
-            },
-            extra_params={"use_cache": False}
-        ),  # type: ignore
-        CommandRunner().run(
-            "/equity/price/historical",
-            provider_choices={
-                "provider": provider,
-            },
-            standard_params={
-                "symbol" : benchmark,
-                "start_date": start_date,
-                "end_date": end_date,
-                "interval": "1d",
-            },
-            extra_params={"use_cache": False}
-        ),  # type: ignore
-    ]
+    symbols_df= obb.equity.price.historical(symbols, start_date, end_date, **kwargs)
+    benchmark_df = obb.equity.price.historical(benchmark, start_date, end_date, **kwargs)
     target_column = "volume" if study == "volume" else "close"
-    symbols_df, benchmark_df = await asyncio.gather(*tasks)
     symbols_data = symbols_df.to_df()
     tickers = symbols_data["symbol"].unique().tolist()
     prices_data = DataFrame()
@@ -909,7 +883,7 @@ async def create(
             tail_interval=tail_interval,
             provider=provider
         )
-        await _fetch_data(self)
+        _fetch_data(self)
 
     if (
         isinstance(symbols, Data)
@@ -954,16 +928,16 @@ async def create(
     if len(self.symbols_data.index) != len(self.benchmark_data.index):
         raise ValueError("Supplied data must have the same index.")
 
-    await _process_data(self)  # type: ignore
+    _process_data(self)  # type: ignore
     self.symbols_data = df_to_basemodel(self.symbols_data.reset_index())  # type: ignore
     self.benchmark_data = df_to_basemodel(self.benchmark_data.reset_index())  # type: ignore
 
     return self # type: ignore
 
-async def _fetch_data(self):
+def _fetch_data(self):
     """Fetch the data."""
 
-    df1, df2 = await get_data(
+    df1, df2 = get_data(
         symbols = self.symbols,
         benchmark = self.benchmark,
         study = self.study,
@@ -976,7 +950,7 @@ async def _fetch_data(self):
     self.benchmark_data = df2
     return self
 
-async def _process_data(self):
+def _process_data(self):
     """Process the data."""
     if self.study == "volatility":
         self.symbols_data = standard_deviation(
