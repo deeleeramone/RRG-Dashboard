@@ -147,82 +147,90 @@ if st.session_state.button_clicked:
 
 main_chart = st.expander("Relative Rotation Graph", expanded=True)
 
-if "first_run" not in st.session_state:
-    st.session_state.first_run = True
-
-if not st.session_state.first_run and st.session_state.rrg_data is not None:
-    with main_chart:
-        fig = st.session_state.rrg_data.show(date, show_tails, tail_periods, tail_interval)
-        fig.update_layout(height=600)
-        st.session_state.fig = fig
-        st.plotly_chart(
-            st.session_state.fig,
-            use_container_width=True,
-            config={
-                "scrollZoom": True,
-                "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-                "modeBarButtons": [
-                    ["toImage"],
-                    [
-                        "drawline",
-                        "drawopenpath",
-                        "drawcircle",
-                        "drawrect",
-                        "eraseshape",
+def main():
+    if "first_run" not in st.session_state:
+        st.session_state.first_run = True
+    
+    if not st.session_state.first_run and st.session_state.rrg_data is not None:
+        with main_chart:
+            fig = st.session_state.rrg_data.show(date, show_tails, tail_periods, tail_interval)
+            fig.update_layout(height=600)
+            st.session_state.fig = fig
+            st.plotly_chart(
+                st.session_state.fig,
+                use_container_width=True,
+                config={
+                    "scrollZoom": True,
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                    "modeBarButtons": [
+                        ["toImage"],
+                        [
+                            "drawline",
+                            "drawopenpath",
+                            "drawcircle",
+                            "drawrect",
+                            "eraseshape",
+                        ],
+                        ["zoomIn2d", "zoomOut2d", "autoScale2d", "zoom2d", "pan2d"],
                     ],
-                    ["zoomIn2d", "zoomOut2d", "autoScale2d", "zoom2d", "pan2d"],
-                ],
-            }
-        )
-        st.markdown("""
-            <style>
-            .js-plotly-plot .plotly .modebar {
-                top: 610px !important;
-                bottom: auto !important;
-                transform: translateY(0) !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+                }
+            )
+            st.markdown("""
+                <style>
+                .js-plotly-plot .plotly .modebar {
+                    top: 610px !important;
+                    bottom: auto !important;
+                    transform: translateY(0) !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+    
+    
+        with st.expander("Study Data Table", expanded=False):
+            symbols_data = (
+                basemodel_to_df(st.session_state.rrg_data.symbols_data)
+                .join(basemodel_to_df(st.session_state.rrg_data.benchmark_data)[st.session_state.rrg_data.benchmark])
+            ).set_index("date")
+            symbols_data.index = pd.to_datetime(symbols_data.index).strftime("%Y-%m-%d")
+            st.dataframe(symbols_data)
+    
+        with st.expander("Relative Strength Ratio Table", expanded=False):
+            ratios_data = basemodel_to_df(st.session_state.rrg_data.rs_ratios).set_index("date")
+            ratios_data.index = pd.to_datetime(ratios_data.index).strftime("%Y-%m-%d")
+            st.dataframe(ratios_data)
+    
+        with st.expander("Relative Strength Momentum Table", expanded=False):
+            ratios_data = basemodel_to_df(st.session_state.rrg_data.rs_momentum).set_index("date")
+            ratios_data.index = pd.to_datetime(ratios_data.index).strftime("%Y-%m-%d")
+            st.dataframe(ratios_data)
+    
+    with st.expander("About"):
+        st.write("""
+            This dashboard is powered by the OpenBB Platform. More information can be found here: https://docs.openbb.co/platform
+    
+            A Relative Rotation Graph is a study of the Relative Strength Ratio vs. Relative Strength Momentum against a
+            benchmark. They are lagging indicators and are typically used for comparing sector or index
+            cconstituents.
+    
+            The Relative Strength Ratio is the price (volume or realized volatility) of the asset divided by the
+            benchmark.
+    
+            The Relative Strength (RS) Momentum is the momentum of the Relative Strength Ratio.
+            In this application, momentum is calculated as the trailing 12-month minus 1-month return.
+            The default values for long and short periods are 252 and 21, which is the number of trading
+            days in a year and a month, respectively. These values can be changed in the sidebar.
+    
+            Realized volatility is calculated as the annualized standard deviation over a trailing 1-month period.
+            The default values of 252 and 21, respectively, can be changed in the sidebar.
+    
+            Values are normalized using the Z-Score Standardization method.
+    
+            All calculations are daily closing levels from the source selected in the sidebar. It should not be assumed
+            that volume represents 100% market coverage.
+            
+            This dashboard is for demonstration purposes only and
+            should not be used to make inferences or investment decisions.
+        """)
 
-
-    with st.expander("Study Data Table", expanded=False):
-        symbols_data = (
-            basemodel_to_df(st.session_state.rrg_data.symbols_data)
-            .join(basemodel_to_df(st.session_state.rrg_data.benchmark_data)[st.session_state.rrg_data.benchmark])
-        ).set_index("date")
-        symbols_data.index = pd.to_datetime(symbols_data.index).strftime("%Y-%m-%d")
-        st.dataframe(symbols_data)
-
-    with st.expander("Relative Strength Ratio Table", expanded=False):
-        ratios_data = basemodel_to_df(st.session_state.rrg_data.rs_ratios).set_index("date")
-        ratios_data.index = pd.to_datetime(ratios_data.index).strftime("%Y-%m-%d")
-        st.dataframe(ratios_data)
-
-    with st.expander("Relative Strength Momentum Table", expanded=False):
-        ratios_data = basemodel_to_df(st.session_state.rrg_data.rs_momentum).set_index("date")
-        ratios_data.index = pd.to_datetime(ratios_data.index).strftime("%Y-%m-%d")
-        st.dataframe(ratios_data)
-
-with st.expander("About"):
-    st.write("""
-        This dashboard is powered by the OpenBB Platform. More information can be found here: https://docs.openbb.co/platform
-
-        A Relative Rotation Graph is a study of the Relative Strength Ratio vs. Relative Strength Momentum against a
-        benchmark. They are lagging indicators and are typically used for comparing sector or index
-        cconstituents.
-
-        The Relative Strength Ratio is the price (volume or realized volatility) of the asset divided by the
-        benchmark.
-
-        The Relative Strength (RS) Momentum is the momentum of the Relative Strength Ratio.
-        In this application, momentum is calculated as the trailing 12-month minus 1-month return.
-        The default values for long and short periods are 252 and 21, which is the number of trading
-        days in a year and a month, respectively. These values can be changed in the sidebar.
-
-        Realized volatility is calculated as the annualized standard deviation over a trailing 1-month period.
-        The default values of 252 and 21, respectively, can be changed in the sidebar.
-
-        All calculations are daily closing levels from the source selected in the sidebar. It should not be assumed
-        that volume represents 100% market coverage. This dashboard is for demonstration purposes only and
-        should not be used to make inferences or investment decisions.
-    """)
+if __name__ == "__main__":
+    main()
