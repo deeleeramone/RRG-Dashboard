@@ -19,7 +19,6 @@ _warn = warnings.warn
 
 
 color_sequence = [
-    "burlywood", "orange", "grey", "magenta", "cyan", "yellowgreen",
     "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
     "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5",
     "#7e7e7e", "#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#f0027f",
@@ -376,7 +375,7 @@ def _create_figure_with_tails(
             y=y_data[:-1],  # All but the last data point
             mode="lines",
             line=dict(color=color_sequence[color], width=3, dash="dash"),
-            opacity=0.2,
+            opacity=0.4,
             showlegend=False,
             name=name,
             text=name,
@@ -385,7 +384,7 @@ def _create_figure_with_tails(
             "RS-Ratio: %{x:.4f}, " +
             "RS-Momentum: %{y:.4f}" +
             "<extra></extra>",
-            hoverlabel=dict(font_size=10)
+            hoverlabel=dict(font_size=12)
         )
 
         # Create a trace for the last data point
