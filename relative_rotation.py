@@ -1015,7 +1015,6 @@ SPDRS = [
     "XLI",
     "XLK",
     "XLP",
-    "XTL",
     "XLU",
     "XLV",
     "XLY",
