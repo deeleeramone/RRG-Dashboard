@@ -9,7 +9,6 @@ from datetime import (
 from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
-from openbb import obb
 from openbb_core.app.command_runner import CommandRunner
 from openbb_core.app.utils import basemodel_to_df, df_to_basemodel
 from openbb_core.provider.abstract.data import Data
@@ -20,6 +19,7 @@ _warn = warnings.warn
 
 
 color_sequence = [
+    "burlywood", "orange", "grey", "magenta", "cyan", "yellowgreen",
     "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
     "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5",
     "#7e7e7e", "#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#f0027f",
@@ -28,7 +28,7 @@ color_sequence = [
 ]
 
 
-def get_data(
+async def get_data(
     symbols: List[str],
     benchmark: str,
     study: Literal["price", "volume", "volatility"] = "price",
@@ -66,9 +66,36 @@ def get_data(
         start_date = (datetime.now() - timedelta(weeks=backfill)).date()
         end_date = datetime.now().date()
 
-    symbols_df= obb.equity.price.historical(symbols, start_date, end_date, **kwargs)
-    benchmark_df = obb.equity.price.historical(benchmark, start_date, end_date, **kwargs)
+    tasks = [
+        CommandRunner().run(
+            "/equity/price/historical",
+            provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : ",".join(symbols),
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        ),  # type: ignore
+        CommandRunner().run(
+            "/equity/price/historical",
+            provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : benchmark,
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        ),  # type: ignore
+    ]
     target_column = "volume" if study == "volume" else "close"
+    symbols_df, benchmark_df = await asyncio.gather(*tasks)
     symbols_data = symbols_df.to_df()
     tickers = symbols_data["symbol"].unique().tolist()
     prices_data = DataFrame()
@@ -349,7 +376,7 @@ def _create_figure_with_tails(
             y=y_data[:-1],  # All but the last data point
             mode="lines",
             line=dict(color=color_sequence[color], width=3, dash="dash"),
-            opacity=0.4,
+            opacity=0.2,
             showlegend=False,
             name=name,
             text=name,
@@ -358,7 +385,7 @@ def _create_figure_with_tails(
             "RS-Ratio: %{x:.4f}, " +
             "RS-Momentum: %{y:.4f}" +
             "<extra></extra>",
-            hoverlabel=dict(font_size=12)
+            hoverlabel=dict(font_size=10)
         )
 
         # Create a trace for the last data point
@@ -883,7 +910,7 @@ async def create(
             tail_interval=tail_interval,
             provider=provider
         )
-        _fetch_data(self)
+        await _fetch_data(self)
 
     if (
         isinstance(symbols, Data)
@@ -928,16 +955,16 @@ async def create(
     if len(self.symbols_data.index) != len(self.benchmark_data.index):
         raise ValueError("Supplied data must have the same index.")
 
-    _process_data(self)  # type: ignore
+    await _process_data(self)  # type: ignore
     self.symbols_data = df_to_basemodel(self.symbols_data.reset_index())  # type: ignore
     self.benchmark_data = df_to_basemodel(self.benchmark_data.reset_index())  # type: ignore
 
     return self # type: ignore
 
-def _fetch_data(self):
+async def _fetch_data(self):
     """Fetch the data."""
 
-    df1, df2 = get_data(
+    df1, df2 = await get_data(
         symbols = self.symbols,
         benchmark = self.benchmark,
         study = self.study,
@@ -950,7 +977,7 @@ def _fetch_data(self):
     self.benchmark_data = df2
     return self
 
-def _process_data(self):
+async def _process_data(self):
     """Process the data."""
     if self.study == "volatility":
         self.symbols_data = standard_deviation(
