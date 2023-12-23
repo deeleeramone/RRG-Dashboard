@@ -19,7 +19,6 @@ _warn = warnings.warn
 
 
 color_sequence = [
-    "burlywood", "orange", "grey", "magenta", "cyan", "yellowgreen",
     "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
     "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5",
     "#7e7e7e", "#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#f0027f",
