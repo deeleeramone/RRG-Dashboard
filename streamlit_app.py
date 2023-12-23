@@ -121,7 +121,7 @@ source = source_dict[source_input]
 
 if st.session_state.button_clicked:
     try:
-        rrg_data = module.create(
+        rrg_data = asyncio.run(module.create(
             symbols = symbols,
             benchmark = benchmark,
             study = study,
@@ -133,7 +133,7 @@ if st.session_state.button_clicked:
             tail_periods = tail_periods,
             tail_interval = tail_interval,
             provider=source,
-        )
+        ))
         st.session_state.rrg_data = rrg_data
         st.session_state.first_run = False
     except Exception:
