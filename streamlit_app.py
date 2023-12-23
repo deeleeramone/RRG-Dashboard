@@ -1,4 +1,3 @@
-import asyncio
 import importlib.util
 from datetime import datetime
 
@@ -121,7 +120,7 @@ def main():
     
     
     def create(symbols, benchmark, study, date, long_period, short_period, window, trading_periods, tail_periods, tail_interval, provider):
-        result = asyncio.run(module.create(
+        result = module.create(
             symbols = symbols,
             benchmark = benchmark,
             study = study,
@@ -133,12 +132,12 @@ def main():
             tail_periods = tail_periods,
             tail_interval = tail_interval,
             provider=provider
-        ))
+        )
         return result
     
     if st.session_state.button_clicked:
         try:
-            rrg_data = asyncio.run(module.create(
+            rrg_data = module.create(
                 symbols = symbols,
                 benchmark = benchmark,
                 study = study,
@@ -150,7 +149,7 @@ def main():
                 tail_periods = tail_periods,
                 tail_interval = tail_interval,
                 provider=source,
-            ))
+            )
             st.session_state.rrg_data = rrg_data
             st.session_state.first_run = False
         except Exception:
