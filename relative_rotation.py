@@ -372,8 +372,8 @@ def _create_figure_with_tails(
         name = symbol.replace("^", "")
         # Create a trace for the line
         line_trace = go.Scattergl(
-            x=x_data[:-1],  # All but the last data point
-            y=y_data[:-1],  # All but the last data point
+            x=x_data.iloc[:-1],  # All but the last data point
+            y=y_data.iloc[:-1],  # All but the last data point
             mode="lines",
             line=dict(color=color_sequence[color], width=3, dash="dash"),
             opacity=0.3,
@@ -390,8 +390,8 @@ def _create_figure_with_tails(
 
         # Create a trace for the last data point
         marker_trace = go.Scatter(
-            x=[x_data[-1]],  # Only the last data point
-            y=[y_data[-1]],  # Only the last data point
+            x=[x_data.iloc[-1]],  # Only the last data point
+            y=[y_data.iloc[-1]],  # Only the last data point
             mode="markers+text",
             name=name,
             text=[name],
