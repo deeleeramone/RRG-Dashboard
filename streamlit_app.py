@@ -156,7 +156,7 @@ if not st.session_state.first_run and st.session_state.rrg_data is not None:
             if show_tails is False
             else st.session_state.rrg_data.show(show_tails=show_tails, tail_periods=tail_periods, tail_interval=tail_interval, external=True)
         )
-        fig.update_layout(height=600, margin=dict(l=0, r=0, b=0, t=50, pad=0))
+        fig.update_layout(height=600, margin=dict(l=0, r=20, b=0, t=50, pad=0))
         st.session_state.fig = fig
         st.plotly_chart(
             st.session_state.fig,
