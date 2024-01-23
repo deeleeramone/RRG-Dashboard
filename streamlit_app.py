@@ -7,7 +7,6 @@ from openbb_core.app.utils import basemodel_to_df
 
 import streamlit as st
 
-
 st.set_page_config(
     layout="wide",
     page_title="Relative Rotation",

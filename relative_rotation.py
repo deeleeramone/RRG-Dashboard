@@ -418,8 +418,8 @@ def _create_figure_with_tails(
 
         # Create a trace for the last data point
         marker_trace = go.Scatter(
-            x=[x_data[-1]],  # Only the last data point
-            y=[y_data[-1]],  # Only the last data point
+            x=[x_data.iloc[-1]],  # Only the last data point
+            y=[y_data.iloc[-1]],  # Only the last data point
             mode="markers+text",
             name=name,
             text=[name],
@@ -1012,6 +1012,7 @@ async def create(
     return self # type: ignore
 
 async def _fetch_data(self):
+async def _fetch_data(self):
     """Fetch the data."""
     if self.provider is None:
         _warn("Provider was not specified. Using default provider: yfinance.")
@@ -1073,6 +1074,7 @@ SPDRS = [
     "XLU",
     "XLV",
     "XLY",
+    "XLRE",
 ]
 
 class RelativeRotation(OBBject):
