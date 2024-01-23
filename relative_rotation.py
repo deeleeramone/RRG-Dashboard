@@ -1,4 +1,5 @@
 """Relative Rotation Studies"""
+
 import asyncio
 import warnings
 from datetime import (
@@ -9,8 +10,10 @@ from datetime import (
 from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
-from openbb import obb
+from openbb_charting.core.openbb_figure import OpenBBFigure
 from openbb_core.app.command_runner import CommandRunner
+from openbb_core.app.model.charts.chart import Chart, ChartFormat
+from openbb_core.app.model.obbject import OBBject
 from openbb_core.app.utils import basemodel_to_df, df_to_basemodel
 from openbb_core.provider.abstract.data import Data
 from pandas import DataFrame, Series, to_datetime
@@ -20,6 +23,7 @@ _warn = warnings.warn
 
 
 color_sequence = [
+    "burlywood", "orange", "grey", "magenta", "cyan", "yellowgreen",
     "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
     "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5",
     "#7e7e7e", "#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#f0027f",
@@ -28,12 +32,12 @@ color_sequence = [
 ]
 
 
-def get_data(
+async def get_data(
     symbols: List[str],
     benchmark: str,
     study: Literal["price", "volume", "volatility"] = "price",
     date: Optional[dateType] = None,
-    tail_periods: Optional[int] = 30,
+    tail_periods: Optional[int] = 16,
     tail_interval: Literal["week", "month"] = "week",
     provider: str = "yfinance",
 ) -> Tuple[DataFrame, DataFrame]:
@@ -60,22 +64,65 @@ def get_data(
         backfill = tail_periods * 4
 
     if date is not None:
-        start_date = (date - timedelta(weeks=backfill))
+        date = to_datetime(date)
+        start_date = (date - timedelta(weeks=backfill)).date()
         end_date = date
     if date is None:
         start_date = (datetime.now() - timedelta(weeks=backfill)).date()
         end_date = datetime.now().date()
 
-    symbols_df= obb.equity.price.historical(symbols, start_date, end_date, **kwargs)
-    benchmark_df = obb.equity.price.historical(benchmark, start_date, end_date, **kwargs)
+    tasks = [
+        CommandRunner().run(
+            "/equity/price/historical",
+            provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : ",".join(symbols),
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        ),  # type: ignore
+        CommandRunner().run(
+            "/equity/price/historical",
+            provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : benchmark,
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        ),  # type: ignore
+    ]
     target_column = "volume" if study == "volume" else "close"
-    symbols_data = symbols_df.to_df()
-    tickers = symbols_data["symbol"].unique().tolist()
-    prices_data = DataFrame()
-    for ticker in tickers:
-        prices_data[ticker] = symbols_data[symbols_data["symbol"] == ticker][target_column]
-    benchmark_data = benchmark_df.to_df()
-    bench_target = "volume" if target_column == "volume" and "volume" in symbols_data.columns else "close"
+    symbols_df, benchmark_df = await asyncio.gather(*tasks)
+    try:
+        symbols_data = symbols_df.to_df()
+    except Exception as e:
+        raise RuntimeError(f"There was an error loading data for {symbols}: {e}")
+    tickers = symbols_data["symbol"].unique().tolist() if "symbol" in symbols_data.columns else symbols
+    prices_data = (
+        symbols_data.pivot(columns="symbol", values=target_column)
+        if len(tickers) > 1
+        else symbols_data[target_column].to_frame()
+    )
+    try:
+        benchmark_data = benchmark_df.to_df()
+    except Exception as e:
+        raise RuntimeError(
+            f"There was an error loading data for {benchmark}: {e}."
+            " Check if the ticker symbol is valid for the provider."
+        )
+    bench_target = (
+        "volume" if target_column == "volume"
+        and "volume" in symbols_data.columns
+        else "close"
+    )
     if target_column == "volume" and bench_target == "close":
         _warn(
             "Volume data not available for benchmark. Using close price."
@@ -83,7 +130,12 @@ def get_data(
         )
 
     benchmark_data = benchmark_data[[bench_target]].rename(columns={bench_target: benchmark})
-
+    if len(benchmark_data) != len(prices_data):
+        raise RuntimeError(
+            "Benchmark data and symbols data must be the same length."
+            " Check completeness for all symbols and benchmark "
+            "by using `obb.equity.price.historical()`"
+        )
     return prices_data, benchmark_data
 
 
@@ -134,12 +186,13 @@ def normalize(data: DataFrame, method: Literal["z", "m", "a"] = "z") -> DataFram
 
 def standard_deviation(
     data: DataFrame,
-    window: int = 30,
+    window: int = 21,
     trading_periods: Optional[int] = None,
     is_crypto: bool = False,
     clean: bool = True,
 ) -> DataFrame:
-    """Standard deviation.
+    """
+    Standard deviation.
 
     Measures how widely returns are dispersed from the average return.
     It is the most common (and biased) estimator of volatility.
@@ -148,7 +201,7 @@ def standard_deviation(
     ----------
     data : pd.DataFrame
         Dataframe of OHLC prices.
-    window : int [default: 30]
+    window : int [default: 21]
         Length of window to calculate over.
     trading_periods : Optional[int] [default: 252]
         Number of trading periods in a year.
@@ -165,8 +218,8 @@ def standard_deviation(
     data = data.copy()
     results = DataFrame()
     if window < 2:
-        _warn("Error: Window must be at least 2, defaulting to 30.")
-        window = 30
+        _warn("Error: Window must be at least 2, defaulting to 21.")
+        window = 21
 
     if trading_periods and is_crypto:
         _warn("is_crypto is overridden by trading_periods.")
@@ -315,6 +368,7 @@ def _create_figure_with_tails(
     tail_periods: int,
     tail_interval: Literal["week", "month"]
 ):
+    """Create the Plotly Figure Object with Tails."""
     color = 0
     symbols = ratios_data.columns.to_list()
 
@@ -342,14 +396,15 @@ def _create_figure_with_tails(
         # Select a single row from each dataframe
         x_data = ratios_data[symbol]
         y_data = momentum_data[symbol]
-        name = symbol.replace("^", "")
+        name = symbol.upper().replace("^", "").replace(":US", "")
         # Create a trace for the line
         line_trace = go.Scattergl(
             x=x_data[:-1],  # All but the last data point
             y=y_data[:-1],  # All but the last data point
-            mode="lines",
-            line=dict(color=color_sequence[color], width=3, dash="dash"),
-            opacity=0.4,
+            mode="lines+markers",
+            line=dict(color=color_sequence[color], width=2, dash="dash"),
+            marker=dict(size=5, color=color_sequence[color]),
+            opacity=0.3,
             showlegend=False,
             name=name,
             text=name,
@@ -358,7 +413,7 @@ def _create_figure_with_tails(
             "RS-Ratio: %{x:.4f}, " +
             "RS-Momentum: %{y:.4f}" +
             "<extra></extra>",
-            hoverlabel=dict(font_size=12)
+            hoverlabel=dict(font_size=10)
         )
 
         # Create a trace for the last data point
@@ -369,8 +424,8 @@ def _create_figure_with_tails(
             name=name,
             text=[name],
             textposition="middle center",
-            textfont=dict(size=8, color="black"),
-            marker=dict(size=26, color=color_sequence[color], line=dict(color="black", width=1)),
+            textfont=dict(size=10, color="black") if len(name) < 4 else dict(size=8, color="black"),
+            marker=dict(size=30, color=color_sequence[color], line=dict(color="black", width=1)),
             showlegend=False,
             hovertemplate=
             "<b>%{text}</b>: " +
@@ -382,7 +437,7 @@ def _create_figure_with_tails(
         color += 1
     padding = 0.1
     y_range = [y_min - padding * abs(y_min) - 0.3, y_max + padding * abs(y_max) + 0.3]
-    x_range = [x_min - padding * abs(x_min), x_max + padding * abs(x_max)]
+    x_range = [x_min - padding * abs(x_min) - 0.3, x_max + padding * abs(x_max) + 0.3]
 
     layout = go.Layout(
         title={
@@ -391,7 +446,7 @@ def _create_figure_with_tails(
             ),
             "x": 0.5,
             "xanchor": "center",
-            "font": dict(color="white")
+            "font": dict(color="white", size=18)
         },
         xaxis=dict(
             title="RS-Ratio",
@@ -400,8 +455,9 @@ def _create_figure_with_tails(
             zerolinecolor="black",
             range=x_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white"),
+            titlefont=dict(color="white", size=16),
             tickfont=dict(color="white"),
+            showspikes=False,
         ),
         yaxis=dict(
             title="<br>RS-Momentum",
@@ -410,7 +466,7 @@ def _create_figure_with_tails(
             zerolinecolor="black",
             range=y_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white"),
+            titlefont=dict(color="white", size=16),
             tickfont=dict(color="white"),
             side="left",
             title_standoff=5,
@@ -495,7 +551,7 @@ def _create_figure_with_tails(
                 text="Leading",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="darkgreen",
                 ),
             ),
@@ -507,7 +563,7 @@ def _create_figure_with_tails(
                 text="Weakening",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="goldenrod",
                 ),
             ),
@@ -519,7 +575,7 @@ def _create_figure_with_tails(
                 text="Lagging",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="red",
                 ),
             ),
@@ -531,7 +587,7 @@ def _create_figure_with_tails(
                 text="Improving",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="blue",
                 ),
             ),
@@ -546,6 +602,7 @@ def _create_figure_with_tails(
         ),
         dragmode="pan",
         hovermode="closest",
+        hoverlabel=dict(font=dict(color="white")),
     )
 
     fig = go.Figure(data=traces, layout=layout)
@@ -560,7 +617,7 @@ def _create_figure(
     date: Optional[dateType] = None,
     study: Literal["price", "volume", "volatility"] = "price",
 ):
-    """Create the Plotly Figure Object"""
+    """Create the Plotly Figure Object without Tails."""
 
     if date is not None:
         date = date.strftime("%Y-%m-%d") if isinstance(date, dateType) else date  # type: ignore
@@ -586,17 +643,16 @@ def _create_figure(
     for i, (column_name, value_x) in enumerate(row_x.items()):
         # Retrieve the corresponding value from the row_y dataframe
         value_y = row_y[column_name]
-
+        marker_name = column_name.upper().replace("^", "").replace(":US", "")
         # Create a scatter trace for each column
-
         trace = go.Scatter(
             x=[value_x],
             y=[value_y],
             mode="markers+text",
-            text=[column_name],
+            text=[marker_name],
             textposition="middle center",
-            textfont=dict(size=8, color="black"),
-            marker=dict(size=28, color=color_sequence[i % len(color_sequence)], line=dict(color="black", width=1)),
+            textfont=dict(size=10 if len(marker_name) < 4 else 8, color="black"),
+            marker=dict(size= 30, color=color_sequence[i % len(color_sequence)], line=dict(color="black", width=1)),
             name=column_name,
             showlegend=False,
             hovertemplate=
@@ -621,7 +677,7 @@ def _create_figure(
             ),
             "x": 0.5,
             "xanchor": "center",
-            "font": dict(color="white")
+            "font": dict(color="white", size=20)
         },
         xaxis=dict(
             title="RS-Ratio",
@@ -630,8 +686,9 @@ def _create_figure(
             zerolinecolor="black",
             range=x_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white"),
+            titlefont=dict(color="white", size=16),
             tickfont=dict(color="white"),
+            showspikes=False,
         ),
         yaxis=dict(
             title="<br>RS-Momentum",
@@ -640,7 +697,7 @@ def _create_figure(
             zerolinecolor="black",
             range=y_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white"),
+            titlefont=dict(color="white", size=16),
             tickfont=dict(color="white"),
             side="left",
             title_standoff=5,
@@ -725,7 +782,7 @@ def _create_figure(
                 text="Leading",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="darkgreen",
                 ),
             ),
@@ -737,7 +794,7 @@ def _create_figure(
                 text="Weakening",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="goldenrod",
                 ),
             ),
@@ -749,7 +806,7 @@ def _create_figure(
                 text="Lagging",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="red",
                 ),
             ),
@@ -761,7 +818,7 @@ def _create_figure(
                 text="Improving",
                 showarrow=False,
                 font=dict(
-                    size=14,
+                    size=18,
                     color="blue",
                 ),
             ),
@@ -775,7 +832,8 @@ def _create_figure(
             pad=0,
         ),
         dragmode="pan",
-        hovermode="closest",
+        hovermode="x unified",
+        hoverlabel=dict(font=dict(color="white")),
     )
 
     fig = go.Figure(data=traces, layout=layout)
@@ -784,6 +842,7 @@ def _create_figure(
 
 
 class RelativeRotationData(Data):
+    """Relative Roration Data Model."""
 
     symbols: List[str]
     benchmark: str
@@ -791,26 +850,36 @@ class RelativeRotationData(Data):
     date: Optional[dateType] = None
     long_period: Optional[int] = 252
     short_period: Optional[int] = 21
-    window: Optional[int] = 30
+    window: Optional[int] = 21
     trading_periods: Optional[int] = 252
     normalize_method: Optional[Literal["z", "m", "a"]] = "z"
     tail_periods: Optional[int] = 30
     tail_interval: Literal["week", "month"] = "week"
-    provider: str = "yfinance"
+    provider: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    symbols_data: Optional[List[Data]] = None
+    benchmark_data: Optional[List[Data]] = None
+    rs_ratios: Optional[List[Data]] = None
+    rs_momentum: Optional[List[Data]] = None
+
 
     def show(
         self,
         date: Optional[dateType] = None,
         show_tails: bool = True,
-        tail_periods: Optional[int] = None,
-        tail_interval: Literal["week", "month"] = "week"
-    ) -> None:
+        tail_periods: Optional[int] = 12,
+        tail_interval: Literal["week", "month", None] = "week",
+        external: bool = False,
+        **kwargs,
+    ) -> Union[OpenBBFigure, None]:
         """Plot the data, optionally for a specific date in the collected data."""
         ratios_data = basemodel_to_df(self.rs_ratios).set_index("date")  # type: ignore
         ratios_data.index = to_datetime(ratios_data.index)
         momentum_data = basemodel_to_df(self.rs_momentum).set_index("date")  # type: ignore
         momentum_data.index = to_datetime(momentum_data.index)
-
+        if date is not None:
+            show_tails = False
         if show_tails is False:
             fig = _create_figure(
                 ratios_data = ratios_data,
@@ -825,18 +894,13 @@ class RelativeRotationData(Data):
                 momentum_data = momentum_data,
                 benchmark_symbol =self.benchmark,
                 study=self.study,
-                tail_periods= (
-                    tail_periods if tail_periods is not None
-                    and tail_periods != self.tail_periods
-                    else self.tail_periods
-                ),
-                tail_interval=(
-                    tail_interval if tail_interval
-                    and tail_interval != self.tail_interval
-                    else self.tail_interval
-                ),
+                tail_periods= self.tail_periods if tail_periods is None else tail_periods,  # type: ignore
+                tail_interval= self.tail_interval if tail_interval is None else tail_interval,
             )
-        return fig
+        return (
+            OpenBBFigure(fig, create_backend=True).show() if external is False  # type: ignore
+            else OpenBBFigure(fig, create_backend=True)  # type: ignore
+        )
 
 
 async def create(
@@ -846,12 +910,12 @@ async def create(
     date: Optional[dateType] = None,
     long_period: Optional[int] = 252,
     short_period: Optional[int] = 21,
-    window: Optional[int] = 30,
+    window: Optional[int] = 21,
     trading_periods: Optional[int] = 252,
     normalize_method: Optional[Literal["z", "m", "a"]] = "z",
     tail_periods: Optional[int] = 30,
     tail_interval: Literal["week", "month"] = "week",
-    provider:Optional[str] = "yfinance"
+    provider:Optional[str] = None,
 ):
     """
     Create an instance of RelativeRotationData with provided data or a list of symbols and the benchmark.
@@ -872,7 +936,7 @@ async def create(
         self = RelativeRotationData(
             symbols=symbols,
             benchmark=benchmark,
-            study=study,
+            study=study,  # type: ignore
             date=date,
             long_period=long_period,
             short_period=short_period,
@@ -883,7 +947,7 @@ async def create(
             tail_interval=tail_interval,
             provider=provider
         )
-        _fetch_data(self)
+        await _fetch_data(self)
 
     if (
         isinstance(symbols, Data)
@@ -891,6 +955,19 @@ async def create(
     ):
         symbols = basemodel_to_df(symbols).set_index("date")
         benchmark = basemodel_to_df(benchmark).set_index("date")
+
+    if (
+        isinstance(symbols, List)
+        and all(isinstance(s, dict) for s in symbols)
+        and isinstance(benchmark, List)
+        and all(isinstance(s, dict) for s in benchmark)
+    ):
+        try:
+            symbols = DataFrame(symbols).set_index("date")
+            benchmark = DataFrame(benchmark).set_index("date")
+        except ValueError:
+            pass
+
 
     if isinstance(benchmark, Series):
         benchmark = benchmark.to_frame()
@@ -903,7 +980,7 @@ async def create(
         self = RelativeRotationData(
             symbols=symbols.columns.to_list(),
             benchmark=benchmark.columns.to_list()[0],
-            study=study,
+            study=study,  # type: ignore
             date=date,
             long_period=long_period,
             short_period=short_period,
@@ -913,31 +990,33 @@ async def create(
             tail_periods=tail_periods,
             tail_interval=tail_interval,
         )
-        self.symbols_data = symbols
-        self.benchmark_data = benchmark
-    if len(self.symbols_data) <= 252 and self.study in ["price", "volume"]:
+        self.symbols_data = symbols  # type: ignore
+        self.benchmark_data = benchmark  # type: ignore
+    if len(self.symbols_data) <= 252 and self.study in ["price", "volume"]:  # type: ignore
         raise ValueError(
             "Supplied data must have more than one year of back data to calculate"
             " the most recent day in the time series."
         )
-    if self.study == "volatility" and len(self.symbols_data) <= 504:
+    if self.study == "volatility" and len(self.symbols_data) <= 504:  # type: ignore
         raise ValueError(
             "Supplied data must have more than two years of back data to calculate"
             " the most recent day in the time series as a volatility study."
         )
-    if len(self.symbols_data.index) != len(self.benchmark_data.index):
+    if len(self.symbols_data.index) != len(self.benchmark_data.index):  # type: ignore
         raise ValueError("Supplied data must have the same index.")
 
-    _process_data(self)  # type: ignore
+    await _process_data(self)  # type: ignore
     self.symbols_data = df_to_basemodel(self.symbols_data.reset_index())  # type: ignore
     self.benchmark_data = df_to_basemodel(self.benchmark_data.reset_index())  # type: ignore
 
     return self # type: ignore
 
-def _fetch_data(self):
+async def _fetch_data(self):
     """Fetch the data."""
-
-    df1, df2 = get_data(
+    if self.provider is None:
+        _warn("Provider was not specified. Using default provider: yfinance.")
+        self.provider = "yfinance"
+    df1, df2 = await get_data(
         symbols = self.symbols,
         benchmark = self.benchmark,
         study = self.study,
@@ -950,7 +1029,7 @@ def _fetch_data(self):
     self.benchmark_data = df2
     return self
 
-def _process_data(self):
+async def _process_data(self):
     """Process the data."""
     if self.study == "volatility":
         self.symbols_data = standard_deviation(
@@ -991,11 +1070,185 @@ SPDRS = [
     "XRT",
     "XHB",
     "XLRE",
-    "XSD",
-    "XTN",
-    "XTL",
-    "XLSR",
     "XLU",
     "XLV",
     "XLY",
 ]
+
+class RelativeRotation(OBBject):
+    """
+    Relative Rotation OBBject.
+
+    Calculated results and the source data are stored in the `results` attribute.
+
+    Results
+    -------
+    symbols: List[str]
+        The list of symbols suppied.
+    benchmark: str
+        The benchmark symbol supplied.
+    study: str
+        The type of data selected. Default is "price".
+    date: dateType
+        The target end date of the study. If None, the current date is used.
+    long_period: int
+        The length of the long period for momentum calculation, as entered.
+        Default is 252.
+    short_period: int
+        The length of the short period for momentum calculation, as entered.
+        Default is 21.
+    window: int
+        The length of window for the standard deviation calculation, as entered.
+        Default is 21. Only valid of study is "volatility".
+    trading_periods: int
+        The number of trading periods per year, as entered. Default is 252.
+        Only valid of study is "volatility".
+    normalize_method: str
+        The normalization method selected. Default is "z".
+            Z: Z-Score Standardization
+            M: Min/Max Scaling
+            A: Absolute Maximum Scale
+    tail_periods: int
+        The number of periods to show tails for each asset, as entered.
+        Supplied values determine the overall length of the data.
+        This value determines the maximum `tail_periods` in the `show()` method.
+        Parameter is relative to `tail_interval`.
+        Default is 30 weeks for fetching and 12 for display.
+    tail_interval: str
+        The interval to show tails for each asset, as entered. Default is "week".
+        None is a proxy for "week".
+    provider: str
+        The data provider when fetching data.
+    start_date: str
+        The start date of the data, after processing.
+    end_date: str
+        The end date of the data, after processing.
+    symbols_data: List[Data]
+        The raw data for each symbol, relative to the 'study' parameter.
+    benchmark_data: List[Data]
+    rs_ratios: List[Data]
+        The normalized relative strength ratios data.
+    rs_momentum: List[Data]
+        The normalized relative strength momentum data.
+    """
+
+    def show(
+        self,
+        date: Optional[dateType] = None,
+        show_tails: bool = True,
+        tail_periods: Optional[int] = None,
+        tail_interval: Literal["week", "month", None] = None,
+        external: bool = False,
+        **kwargs,
+    ) -> Union[OpenBBFigure, None]:
+        """
+        Create and display the Relative Rotation Graph.
+
+        This modifies the `chart` attribute of the orignal object.
+
+        Parameters
+        ----------
+        date: Optional[datetime.date] = None
+            The date to show the Relative Rotation Graph. If None, the most recent date in the
+            data is used. Specifying a date will override 'tail' parameters. Defaults to None.
+            Format as YYYY-MM-DD.
+        show_tails: bool = True
+            Whether to show the tails of the Relative Rotation Graph. Defaults to True.
+            Specifying a date is akin to False.
+        tail_periods: Optional[int] = 12
+            The number of periods to show tails for each asset. The number is relative
+            to the choice for `tail_interval`. Defaults to 12. The maximimum is limited
+            to the original data length, by default will be 30 weeks. For longer data,
+            rerun the function with the `tail_periods` set to a higher number.
+        tail_interval: Literal["week", "month", None] = "week"
+            The interval to show tails for. Defaults to "week". None is a proxy for "week".
+        external: bool = False
+            When True, the OpenBBFigure Object is returned instead of being displayed.
+
+        Returns
+        -------
+        Union[OpenBBFigure, None]
+            If `external` is True, returns the OpenBBFigure Object. Otherwise, returns None.
+            Figures are displayed in a PyWry window from the command line.
+        """
+        if date is not None:
+            show_tails = False
+        if tail_periods is None:
+            tail_periods = self.results.tail_periods  # type: ignore
+        if tail_interval is None:
+            tail_interval = self.results.tail_interval  # type: ignore
+
+        fig = self.results.show(  # type: ignore
+            date=date,
+            show_tails=show_tails,
+            tail_periods=tail_periods,
+            tail_interval=tail_interval,
+            external=True,
+        )
+        content = fig.to_plotly_json()
+        format = ChartFormat.plotly
+        chart = Chart(content=content, format=format, fig=fig)
+        self.chart = chart
+        self.provider = self.results.provider  # type: ignore
+
+        return fig.show() if external is False else fig
+
+    def to_chart(
+        self,
+        date: Optional[dateType] = None,
+        show_tails: bool = True,
+        tail_periods: Optional[int] = None,
+        tail_interval: Literal["week", "month", None] = None,
+        **kwargs,
+    ):
+        """
+        Creates the Relative Rotation Graph returning to the `chart` attribute of the orignal object.
+
+        Proxy function for `show()` that does not display. Use `show()` to display the chart.
+
+        This modifies the `chart` attribute of the orignal object.
+
+        Parameters
+        ----------
+        date: Optional[datetime.date] = None
+            The date to show the Relative Rotation Graph. If None, the most recent date in the
+            data is used. Specifying a date will override 'tail' parameters. Defaults to None.
+            Format as YYYY-MM-DD.
+        show_tails: bool = True
+            Whether to show the tails of the Relative Rotation Graph. Defaults to True.
+            Specifying a date is akin to False.
+        tail_periods: Optional[int] = 12
+            The number of periods to show tails for each asset. The number is relative
+            to the choice for `tail_interval`. Defaults to 12. The maximimum is limited
+            to the original data length, by default will be 30 weeks. For longer data,
+            rerun the function with the `tail_periods` set to a higher number.
+        tail_interval: Literal["week", "month", None] = "week"
+            The interval to show tails for. Defaults to "week". If None, it will default to
+            12 weeks.
+
+        Returns
+        -------
+        Self
+            The Relative Rotation Graph is returned to the `chart` attribute of the orignal object.
+        """
+        if date is not None:
+            show_tails = False
+        if tail_periods is None:
+            tail_periods = self.results.tail_periods  # type: ignore
+        if tail_interval is None:
+            tail_interval = self.results.tail_interval  # type: ignore
+
+        fig = self.results.show(  # type: ignore
+            date=date,
+            show_tails=show_tails,
+            tail_periods=tail_periods,
+            tail_interval=tail_interval,
+            external=True,
+        )
+        content = fig.to_plotly_json()
+        format = ChartFormat.plotly
+        chart = Chart(content=content, format=format, fig=fig)
+        self.chart = chart
+        self.provider = self.results.provider  # type: ignore
+
+        return self
