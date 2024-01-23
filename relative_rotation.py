@@ -1012,7 +1012,6 @@ async def create(
     return self # type: ignore
 
 async def _fetch_data(self):
-async def _fetch_data(self):
     """Fetch the data."""
     if self.provider is None:
         _warn("Provider was not specified. Using default provider: yfinance.")
