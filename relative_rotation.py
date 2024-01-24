@@ -801,7 +801,7 @@ def _create_figure(
 
 
 class RelativeRotationData(Data):
-    """Relative Roration Data Model."""
+    """Relative Rotation Data Model."""
 
     symbols: List[str]
     benchmark: str
