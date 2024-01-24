@@ -17,7 +17,7 @@ days in a year and a month, respectively. These values can be changed in the sid
 Realized volatility is calculated as the annualized standard deviation over a trailing 1-month period.
 The number of trading days per year and the rolling window can be adjusted in the sidebar.
             
-All calculations are from daily close values from the source selected in the sidebar. It should not be assumed
+All calculations use daily close levels from the source selected in the sidebar. It should not be assumed
 that volume represents 100% market coverage.
 
 All values are normalized using the Z-Score Standardization method.
