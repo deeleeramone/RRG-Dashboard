@@ -70,72 +70,31 @@ async def get_data(
     if date is None:
         start_date = (datetime.now() - timedelta(weeks=backfill)).date()
         end_date = datetime.now().date()
-
-    tasks = [
-        CommandRunner().run(
-            "/equity/price/historical",
-            provider_choices={
-                "provider": provider,
-            },
-            standard_params={
-                "symbol" : ",".join(symbols),
-                "start_date": start_date,
-                "end_date": end_date,
-                "interval": "1d",
-            },
-            extra_params={"use_cache": False}
-        ),  # type: ignore
-        CommandRunner().run(
-            "/equity/price/historical",
-            provider_choices={
-                "provider": provider,
-            },
-            standard_params={
-                "symbol" : benchmark,
-                "start_date": start_date,
-                "end_date": end_date,
-                "interval": "1d",
-            },
-            extra_params={"use_cache": False}
-        ),  # type: ignore
-    ]
     target_column = "volume" if study == "volume" else "close"
-    symbols_df, benchmark_df = await asyncio.gather(*tasks)
+    tickers = symbols+ [benchmark]
+    runner = CommandRunner()
     try:
-        symbols_data = symbols_df.to_df()
+        _data = await runner.run(            
+            "/equity/price/historical",
+            provider_choices={
+                "provider": provider,
+            },
+            standard_params={
+                "symbol" : ",".join(tickers),
+                "start_date": start_date,
+                "end_date": end_date,
+                "interval": "1d",
+            },
+            extra_params={"use_cache": False}
+        )  # type: ignore
+        data = _data.to_df().pivot(columns="symbol", values=target_column)
     except Exception as e:
         raise RuntimeError(f"There was an error loading data for {symbols}: {e}")
-    tickers = symbols_data["symbol"].unique().tolist() if "symbol" in symbols_data.columns else symbols
-    prices_data = (
-        symbols_data.pivot(columns="symbol", values=target_column)
-        if len(tickers) > 1
-        else symbols_data[target_column].to_frame()
-    )
     try:
-        benchmark_data = benchmark_df.to_df()
+        benchmark_data = data.pop(benchmark).to_frame()
     except Exception as e:
-        raise RuntimeError(
-            f"There was an error loading data for {benchmark}: {e}."
-            " Check if the ticker symbol is valid for the provider."
-        )
-    bench_target = (
-        "volume" if target_column == "volume"
-        and "volume" in symbols_data.columns
-        else "close"
-    )
-    if target_column == "volume" and bench_target == "close":
-        _warn(
-            "Volume data not available for benchmark. Using close price."
-            "To study volume against the benchmark, use an index-tracking ETF."
-        )
-
-    benchmark_data = benchmark_data[[bench_target]].rename(columns={bench_target: benchmark})
-    if len(benchmark_data) != len(prices_data):
-        raise RuntimeError(
-            "Benchmark data and symbols data must be the same length."
-            " Check completeness for all symbols and benchmark "
-            "by using `obb.equity.price.historical()`"
-        )
+        raise RuntimeError(f"There was an error loading data for {benchmark}: {e}")
+    prices_data = data
     return prices_data, benchmark_data
 
 

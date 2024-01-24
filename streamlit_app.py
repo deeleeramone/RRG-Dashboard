@@ -139,7 +139,11 @@ if st.session_state.button_clicked:
         st.session_state.rrg_data = None
         st.session_state.first_run = True
         if input_string != "" and benchmark_input != "":
-            st.write("There was an error fetching the data.  Please check if the symbols are correct and are available from the selected source.")
+            st.write(
+                "There was an error fetching the data." 
+                " Please check if the symbols are correct and available at the source."
+                " Volume data may not exist for most indexes, for example."
+            )
         if input_string == "" or benchmark_input == "":
             st.write("Please enter a list of symbols and a benchmark.")
 
