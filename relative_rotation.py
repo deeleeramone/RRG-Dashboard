@@ -374,8 +374,8 @@ def _create_figure_with_tails(
             "<extra></extra>",
             hoverlabel=dict(font_size=10)
         )
-        special_name = "-" in name
-        marker_size = 35 if special_name else 30
+        special_name = "-" in name or len(name) > 7
+        marker_size = 38 if special_name else 30
         # Create a trace for the last data point
         marker_trace = go.Scatter(
             x=[x_data.iloc[-1]],  # Only the last data point
@@ -604,8 +604,8 @@ def _create_figure(
         # Retrieve the corresponding value from the row_y dataframe
         value_y = row_y[column_name]
         marker_name = column_name.upper().replace("^", "").replace(":US", "")
-        special_name = "-" in marker_name
-        marker_size = 35 if special_name else 30
+        special_name = "-" in marker_name or len(marker_name) > 7
+        marker_size = 38 if special_name else 30
         # Create a scatter trace for each column
         trace = go.Scatter(
             x=[value_x],
