@@ -374,7 +374,8 @@ def _create_figure_with_tails(
             "<extra></extra>",
             hoverlabel=dict(font_size=10)
         )
-
+        special_name = "-" in name
+        marker_size = 35 if special_name else 30
         # Create a trace for the last data point
         marker_trace = go.Scatter(
             x=[x_data.iloc[-1]],  # Only the last data point
@@ -384,7 +385,7 @@ def _create_figure_with_tails(
             text=[name],
             textposition="middle center",
             textfont=dict(size=10, color="black") if len(name) < 4 else dict(size=8, color="black"),
-            marker=dict(size=30, color=color_sequence[color], line=dict(color="black", width=1)),
+            marker=dict(size=marker_size, color=color_sequence[color], line=dict(color="black", width=1)),
             showlegend=False,
             hovertemplate=
             "<b>%{text}</b>: " +
@@ -603,6 +604,8 @@ def _create_figure(
         # Retrieve the corresponding value from the row_y dataframe
         value_y = row_y[column_name]
         marker_name = column_name.upper().replace("^", "").replace(":US", "")
+        special_name = "-" in marker_name
+        marker_size = 35 if special_name else 30
         # Create a scatter trace for each column
         trace = go.Scatter(
             x=[value_x],
@@ -611,7 +614,7 @@ def _create_figure(
             text=[marker_name],
             textposition="middle center",
             textfont=dict(size=10 if len(marker_name) < 4 else 8, color="black"),
-            marker=dict(size= 30, color=color_sequence[i % len(color_sequence)], line=dict(color="black", width=1)),
+            marker=dict(size=marker_size, color=color_sequence[i % len(color_sequence)], line=dict(color="black", width=1)),
             name=column_name,
             showlegend=False,
             hovertemplate=
