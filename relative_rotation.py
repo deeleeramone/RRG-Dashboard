@@ -348,53 +348,90 @@ def _create_figure_with_tails(
     x_max = ratios_data.max().max()
     y_min = momentum_data.min().min()
     y_max = momentum_data.max().max()
-    # Create an empty list to store the scatter traces
-    traces = []
-    for symbol in symbols:
 
-        # Select a single row from each dataframe
+    # Select a single row from each dataframe
+    for i, symbol in enumerate(symbols):
         x_data = ratios_data[symbol]
         y_data = momentum_data[symbol]
         name = symbol.upper().replace("^", "").replace(":US", "")
-        # Create a trace for the line
-        line_trace = go.Scattergl(
-            x=x_data[:-1],  # All but the last data point
-            y=y_data[:-1],  # All but the last data point
-            mode="lines+markers",
-            line=dict(color=color_sequence[color], width=2, dash="dash"),
-            marker=dict(size=5, color=color_sequence[color]),
-            opacity=0.3,
-            showlegend=False,
-            name=name,
-            text=name,
-            hovertemplate=
-            "<b>%{fullData.name}</b>: " +
-            "RS-Ratio: %{x:.4f}, " +
-            "RS-Momentum: %{y:.4f}" +
-            "<extra></extra>",
-            hoverlabel=dict(font_size=10)
-        )
         special_name = "-" in name or len(name) > 7
         marker_size = 38 if special_name else 30
-        # Create a trace for the last data point
-        marker_trace = go.Scatter(
-            x=[x_data.iloc[-1]],  # Only the last data point
-            y=[y_data.iloc[-1]],  # Only the last data point
-            mode="markers+text",
-            name=name,
-            text=[name],
-            textposition="middle center",
-            textfont=dict(size=10, color="black") if len(name) < 4 else dict(size=8, color="black"),
-            marker=dict(size=marker_size, color=color_sequence[color], line=dict(color="black", width=1)),
-            showlegend=False,
-            hovertemplate=
-            "<b>%{text}</b>: " +
-            "RS-Ratio: %{x:.4f}, " +
-            "RS-Momentum: %{y:.4f}" +
-            "<extra></extra>",
-        )
-        traces.extend([line_trace, marker_trace])
-        color += 1
+
+    frames = []
+
+    for i, date in enumerate(x_data.index):
+
+        frame_data = []
+
+        for j, symbol in enumerate(symbols):
+            x_frame_data = ratios_data[symbol].iloc[:i + 1]
+            y_frame_data = momentum_data[symbol].iloc[:i + 1]
+
+            line_frame_trace = go.Scatter(
+                x=x_frame_data,
+                y=y_frame_data,
+                mode="lines",
+                line=dict(color=color_sequence[j], width=2, dash="dash"),
+                marker=dict(size=2, color=color_sequence[j]),
+                name=symbol.upper().replace("^", "").replace(":US", ""),
+                text=symbol.upper().replace("^", "").replace(":US", ""),
+                hoverinfo="none",
+                showlegend=False,
+                opacity=0.3
+            )
+
+            marker_frame_trace = go.Scatter(
+                x=[x_frame_data.iloc[-1]],
+                y=[y_frame_data.iloc[-1]],
+                mode="markers+text",
+                name=symbol.upper().replace("^", "").replace(":US", ""),
+                text=[symbol.upper().replace("^", "").replace(":US", "")],
+                textposition="middle center",
+                textfont=dict(size=10, color="black") if len(symbol) < 4 else dict(size=8, color="black"),
+                line=dict(color=color_sequence[j], width=2, dash="dash"),
+                marker=dict(size=marker_size, color=color_sequence[j]),
+                opacity=0.3,
+                showlegend=False,
+                hovertemplate="<b>%{fullData.name}</b>: RS-Ratio: %{x:.4f}, RS-Momentum: %{y:.4f}<extra></extra>",
+            )
+
+            frame_data.extend([line_frame_trace, marker_frame_trace])
+
+        frames.append(go.Frame(data=frame_data, name=f'Frame {i}'))
+
+    # Layout definition
+    layout = go.Layout(title=f"Relative Rotation Against {benchmark_symbol.replace('^', '')} {study.capitalize()} For {tail_title}",
+                       xaxis=dict(title='RS-Ratio'), yaxis=dict(title='RS-Momentum'),
+                       hovermode="closest",
+                       sliders=[{
+                           "active": 0,
+                           "yanchor": "top",
+                           "xanchor": "left",
+                           "currentvalue": {
+                               "font": {"size": 16},
+                               "prefix": "Date: ",
+                               "visible": True,
+                               "xanchor": "right",
+                           },
+                           "transition": {"duration": 300, "easing": "cubic-in-out"},
+                           "pad": {"b": 10, "t": 50},
+                           "len": 0.9,
+                           "x": 0.1,
+                           "y": 0,
+                           "steps": [{
+                               "label": f"{x_data.index[i].strftime('%Y-%m-%d')}",
+                               "method": "animate",
+                               "args": [[f'Frame {i}'], {
+                                   "mode": "immediate",
+                                   "transition": {"duration": 300},
+                                   "frame": {"duration": 300, "redraw": False},
+                               }],
+                           } for i in range(len(x_data.index))]
+                       }],)
+
+    # Define the initial trace for the figure
+    initial_trace = frames[0]['data']
+    
     padding = 0.1
     y_range = [y_min - padding * abs(y_min) - 0.3, y_max + padding * abs(y_max) + 0.3]
     x_range = [x_min - padding * abs(x_min) - 0.3, x_max + padding * abs(x_max) + 0.3]
@@ -563,9 +600,35 @@ def _create_figure_with_tails(
         dragmode="pan",
         hovermode="closest",
         hoverlabel=dict(font=dict(color="white")),
+        sliders=[{
+            "active": 0,
+            "yanchor": "top",
+            "xanchor": "left",
+            "currentvalue": {
+                "font": {"size": 16},
+                "prefix": "Date:",
+                "visible": True,
+                "xanchor": "right",
+            },
+            "transition": {"duration": 300, "easing": "cubic-in-out"},
+            "pad": {"b": 10, "t": 50},
+            "len": 0.9,
+            "x": 0.1,
+            "y": 0,
+            "steps": [{
+                "label": f"{x_data.index[i].strftime('%Y-%m-%d')}",
+                "method": "animate",
+                "args": [[f'Frame {i}'], {
+                    "mode": "immediate",
+                    "transition": {"duration": 300},
+                    "frame": {"duration": 300, "redraw": False},
+                }],
+            } for i in range(len(x_data.index))]
+        }],
     )
 
-    fig = go.Figure(data=traces, layout=layout)
+    # Create the figure and add the initial trace
+    fig = go.Figure(data=initial_trace, layout=layout, frames=frames)
 
     return fig
 
