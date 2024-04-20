@@ -47,9 +47,36 @@ def import_from_file(module_name, file_path):
 
 module = import_from_file("module", "relative_rotation.py")
 
+st.sidebar.markdown(
+    """
+<style>
+section[data-testid="stSidebar"] {
+    top: 1% !important;
+    height: 98.25% !important;
+    left: 0.33% !important;
+    margin-top: 0 !important;
+}
+section[data-testid="stSidebar"] img {
+    margin-top: -75px !important;
+    margin-left: -10px !important;
+    width: 95% !important;
+}
+section[data-testid="stVerticalBlock"] {
+    gap: 0rem;
+}
+body {
+    line-height: 1.2;
+}
+</style>
+<figure style='text-align: center;'>
+    <img src='https://openbb.co/assets/images/ogimages/Homepage.png' />
+    <figcaption style='font-size: 0.8em; color: #888;'>Powered by Open Source</figcaption>
+</figure>
+""",
+    unsafe_allow_html=True,
+)
 
 st.sidebar.header("Relative Rotation Graph")
-
 
 with st.sidebar:
     source_input = st.selectbox("Data Source", SOURCE_CHOICES, index=0, key="source")
