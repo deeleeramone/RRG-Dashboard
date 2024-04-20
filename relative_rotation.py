@@ -1,13 +1,12 @@
 """Relative Rotation Studies"""
 
-import asyncio
-import warnings
 from datetime import (
     date as dateType,
     datetime,
     timedelta,
 )
 from typing import List, Literal, Optional, Tuple, Union
+from warnings import warn
 
 import numpy as np
 from openbb_charting.core.openbb_figure import OpenBBFigure
@@ -19,18 +18,70 @@ from openbb_core.provider.abstract.data import Data
 from pandas import DataFrame, Series, to_datetime
 from plotly import graph_objects as go
 
-_warn = warnings.warn
 
 
 color_sequence = [
-    "burlywood", "orange", "grey", "magenta", "cyan", "yellowgreen",
-    "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
-    "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5",
-    "#7e7e7e", "#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#f0027f",
-    "#bf5b17", "#6666a", "#d9f202", "#d9f02", "#7573b", "#e798a", "#66a16", "#e6a02", "#a671d", "#66666",
-    "#f007f", "#bf517", "#6666a", "#d9f202", "#d9f02", "#7573b", "#e798a", "#66a16", "#e6a02", "#a671d"
+    "burlywood",
+    "orange",
+    "grey",
+    "magenta",
+    "cyan",
+    "yellowgreen",
+    "#1f77b4",
+    "#aec7e8",
+    "#ff7f0e",
+    "#ffbb78",
+    "#d62728",
+    "#ff9896",
+    "#9467bd",
+    "#c5b0d5",
+    "#8c564b",
+    "#c49c94",
+    "#e377c2",
+    "#f7b6d2",
+    "#7f7f7f",
+    "#c7c7c7",
+    "#bcbd22",
+    "#dbdb8d",
+    "#17becf",
+    "#9edae5",
+    "#7e7e7e",
+    "#1b9e77",
+    "#d95f02",
+    "#7570b3",
+    "#e7298a",
+    "#66a61e",
+    "#e6ab02",
+    "#a6761d",
+    "#666666",
+    "#f0027f",
+    "#bf5b17",
+    "#d9f202",
+    "#8dd3c7",
+    "#ffffb3",
+    "#bebada",
+    "#fb8072",
+    "#80b1d3",
+    "#fdb462",
+    "#b3de69",
+    "#fccde5",
+    "#d9d9d9",
+    "#bc80bd",
+    "#ccebc5",
+    "#ffed6f",
+    "#6a3d9a",
+    "#b15928",
+    "#b2df8a",
+    "#33a02c",
+    "#fb9a99",
+    "#e31a1c",
+    "#fdbf6f",
+    "#ff7f00",
+    "#cab2d6",
+    "#6a3d9a",
+    "#ffff99",
+    "#b15928",
 ]
-
 
 async def get_data(
     symbols: List[str],
@@ -74,7 +125,7 @@ async def get_data(
     tickers = symbols+ [benchmark]
     runner = CommandRunner()
     try:
-        _data = await runner.run(            
+        _data = await runner.run(
             "/equity/price/historical",
             provider_choices={
                 "provider": provider,
@@ -177,11 +228,11 @@ def standard_deviation(
     data = data.copy()
     results = DataFrame()
     if window < 2:
-        _warn("Error: Window must be at least 2, defaulting to 21.")
+        warn("Error: Window must be at least 2, defaulting to 21.")
         window = 21
 
     if trading_periods and is_crypto:
-        _warn("is_crypto is overridden by trading_periods.")
+        warn("is_crypto is overridden by trading_periods.")
 
     if not trading_periods:
         trading_periods = 365 if is_crypto else 252
@@ -348,57 +399,66 @@ def _create_figure_with_tails(
     x_max = ratios_data.max().max()
     y_min = momentum_data.min().min()
     y_max = momentum_data.max().max()
-    # Create an empty list to store the scatter traces
-    traces = []
-    for symbol in symbols:
 
-        # Select a single row from each dataframe
-        x_data = ratios_data[symbol]
-        y_data = momentum_data[symbol]
-        name = symbol.upper().replace("^", "").replace(":US", "")
-        # Create a trace for the line
-        line_trace = go.Scattergl(
-            x=x_data[:-1],  # All but the last data point
-            y=y_data[:-1],  # All but the last data point
-            mode="lines+markers",
-            line=dict(color=color_sequence[color], width=2, dash="dash"),
-            marker=dict(size=5, color=color_sequence[color]),
-            opacity=0.3,
-            showlegend=False,
-            name=name,
-            text=name,
-            hovertemplate=
-            "<b>%{fullData.name}</b>: " +
-            "RS-Ratio: %{x:.4f}, " +
-            "RS-Momentum: %{y:.4f}" +
-            "<extra></extra>",
-            hoverlabel=dict(font_size=10)
-        )
-        special_name = "-" in name or len(name) > 7
-        marker_size = 38 if special_name else 30
-        # Create a trace for the last data point
-        marker_trace = go.Scatter(
-            x=[x_data.iloc[-1]],  # Only the last data point
-            y=[y_data.iloc[-1]],  # Only the last data point
-            mode="markers+text",
-            name=name,
-            text=[name],
-            textposition="middle center",
-            textfont=dict(size=10, color="black") if len(name) < 4 else dict(size=8, color="black"),
-            marker=dict(size=marker_size, color=color_sequence[color], line=dict(color="black", width=1)),
-            showlegend=False,
-            hovertemplate=
-            "<b>%{text}</b>: " +
-            "RS-Ratio: %{x:.4f}, " +
-            "RS-Momentum: %{y:.4f}" +
-            "<extra></extra>",
-        )
-        traces.extend([line_trace, marker_trace])
-        color += 1
+
+    frames = []
+    x_data = ratios_data
+    y_data = momentum_data
+    for i, date in enumerate(ratios_data.index):
+
+        frame_data = []
+
+        for j, symbol in enumerate(symbols):
+            x_frame_data = x_data[symbol].iloc[:i + 1]
+            y_frame_data = y_data[symbol].iloc[:i + 1]
+            name = symbol.upper().replace("^", "").replace(":US", "")
+            special_name = "-" in name or len(name) > 7
+            marker_size = 34 if special_name else 30
+            line_frame_trace = go.Scatter(
+                x=x_frame_data,
+                y=y_frame_data,
+                mode="markers+lines",
+                line=dict(color=color_sequence[j], width=2, dash="dash"),
+                marker=dict(size=5, color=color_sequence[j], line=dict(color="black", width=1)),
+                showlegend=False,
+                opacity=0.3,
+                name=name,
+                text=name,
+                hovertemplate=
+                "<b>%{fullData.name}</b>: " +
+                "RS-Ratio: %{x:.4f}, " +
+                "RS-Momentum: %{y:.4f}" +
+                "<extra></extra>",
+                hoverlabel=dict(font_size=10),
+            )
+
+            marker_frame_trace = go.Scatter(
+                x=[x_frame_data.iloc[-1]],
+                y=[y_frame_data.iloc[-1]],
+                mode="markers+text",
+                name=name,
+                text=name,
+                textposition="middle center",
+                textfont=dict(size=10, color="black") if len(symbol) < 4 else dict(size=7, color="black"),
+                line=dict(color=color_sequence[j], width=2, dash="dash"),
+                marker=dict(size=marker_size, color=color_sequence[j], line=dict(color="black", width=1)),
+                opacity=0.9,
+                showlegend=False,
+                hovertemplate="<b>%{fullData.name}</b>: RS-Ratio: %{x:.4f}, RS-Momentum: %{y:.4f}<extra></extra>",
+            )
+
+            frame_data.extend([line_frame_trace, marker_frame_trace])
+
+        frames.append(go.Frame(data=frame_data, name=f'Frame {i}'))
+
+    # Define the initial trace for the figure
+    initial_trace = frames[0]['data']
+
     padding = 0.1
     y_range = [y_min - padding * abs(y_min) - 0.3, y_max + padding * abs(y_max) + 0.3]
     x_range = [x_min - padding * abs(x_min) - 0.3, x_max + padding * abs(x_max) + 0.3]
 
+    # Create the layout for the figure
     layout = go.Layout(
         title={
             "text": (
@@ -563,9 +623,50 @@ def _create_figure_with_tails(
         dragmode="pan",
         hovermode="closest",
         hoverlabel=dict(font=dict(color="white")),
+        updatemenus = [{
+            "buttons": [{
+                "args": [None, {"frame": {"duration": 500, "redraw": False}, "fromcurrent": True, "transition": {"duration": 500, "easing": "linear"}}],
+                "label": "Play",
+                "method": "animate"
+            }],
+            "direction": "left",
+            "pad": {"r": 0, "t": 75},
+            "showactive": False,
+            "type": "buttons",
+            "x": -0.025,
+            "xanchor": "left",
+            "y": 0,
+            "yanchor": "top"
+        }],
+        sliders=[{
+            "active": 0,
+            "yanchor": "top",
+            "xanchor": "center",
+            "currentvalue": {
+                "font": {"size": 16},
+                "prefix": "Date: ",
+                "visible": True,
+                "xanchor": "right",
+            },
+            "transition": {"duration": 300, "easing": "cubic-in-out"},
+            "pad": {"b": 10, "t": 50},
+            "len": 0.9,
+            "x": 0.5,
+            "y": 0,
+            "steps": [{
+                "label": f"{x_data.index[i].strftime('%Y-%m-%d')}",
+                "method": "animate",
+                "args": [[f'Frame {i}'], {
+                    "mode": "immediate",
+                    "transition": {"duration": 300},
+                    "frame": {"duration": 300, "redraw": False},
+                }],
+            } for i in range(len(x_data.index))]
+        }],
     )
 
-    fig = go.Figure(data=traces, layout=layout)
+    # Create the figure and add the initial trace
+    fig = go.Figure(data=initial_trace, layout=layout, frames=frames)
 
     return fig
 
@@ -582,7 +683,7 @@ def _create_figure(
     if date is not None:
         date = date.strftime("%Y-%m-%d") if isinstance(date, dateType) else date  # type: ignore
         if date not in ratios_data.index:
-            _warn(f"Date {date} not found in data, using the last available date.")
+            warn(f"Date {date} not found in data, using the last available date.")
             date = ratios_data.index[-1].strftime("%Y-%m-%d") if isinstance(date, dateType) else ratios_data.index[-1]
     if date is None:
         date = ratios_data.index[-1].strftime("%Y-%m-%d") if isinstance(date, dateType) else ratios_data.index[-1]
@@ -605,7 +706,7 @@ def _create_figure(
         value_y = row_y[column_name]
         marker_name = column_name.upper().replace("^", "").replace(":US", "")
         special_name = "-" in marker_name or len(marker_name) > 7
-        marker_size = 38 if special_name else 30
+        marker_size = 30 if special_name else 30
         # Create a scatter trace for each column
         trace = go.Scatter(
             x=[value_x],
@@ -976,7 +1077,7 @@ async def create(
 async def _fetch_data(self):
     """Fetch the data."""
     if self.provider is None:
-        _warn("Provider was not specified. Using default provider: yfinance.")
+        warn("Provider was not specified. Using default provider: yfinance.")
         self.provider = "yfinance"
     df1, df2 = await get_data(
         symbols = self.symbols,
