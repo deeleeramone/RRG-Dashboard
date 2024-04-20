@@ -18,8 +18,6 @@ from openbb_core.provider.abstract.data import Data
 from pandas import DataFrame, Series, to_datetime
 from plotly import graph_objects as go
 
-
-
 color_sequence = [
     "burlywood",
     "orange",
@@ -379,7 +377,7 @@ def _create_figure_with_tails(
     tail_interval: Literal["week", "month"]
 ):
     """Create the Plotly Figure Object with Tails."""
-    color = 0
+
     symbols = ratios_data.columns.to_list()
 
     tail_dict = {"week": "W", "month": "M"}
@@ -706,7 +704,7 @@ def _create_figure(
         value_y = row_y[column_name]
         marker_name = column_name.upper().replace("^", "").replace(":US", "")
         special_name = "-" in marker_name or len(marker_name) > 7
-        marker_size = 30 if special_name else 30
+        marker_size = 34 if special_name else 30
         # Create a scatter trace for each column
         trace = go.Scatter(
             x=[value_x],
