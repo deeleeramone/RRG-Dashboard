@@ -140,7 +140,7 @@ if st.session_state.button_clicked:
         st.session_state.first_run = True
         if input_string != "" and benchmark_input != "":
             st.write(
-                "There was an error fetching the data." 
+                "There was an error fetching the data."
                 " Please check if the symbols are correct and available at the source."
                 " Volume data may not exist for most indexes, for example."
             )
@@ -167,16 +167,10 @@ if not st.session_state.first_run and st.session_state.rrg_data is not None:
             use_container_width=True,
             config={
                 "scrollZoom": True,
+                "displaylogo": False,
                 "modeBarButtonsToRemove": ["lasso2d", "select2d"],
                 "modeBarButtons": [
                     ["toImage"],
-                    [
-                        "drawline",
-                        "drawopenpath",
-                        "drawcircle",
-                        "drawrect",
-                        "eraseshape",
-                    ],
                     ["zoomIn2d", "zoomOut2d", "autoScale2d", "zoom2d", "pan2d"],
                 ],
             }
@@ -184,7 +178,8 @@ if not st.session_state.first_run and st.session_state.rrg_data is not None:
         st.markdown("""
             <style>
             .js-plotly-plot .plotly .modebar {
-                top: 610px !important;
+                top: -40px !important;
+                right: 30px !important;
                 bottom: auto !important;
                 transform: translateY(0) !important;
             }

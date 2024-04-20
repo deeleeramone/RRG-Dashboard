@@ -464,33 +464,36 @@ def _create_figure_with_tails(
             ),
             "x": 0.5,
             "xanchor": "center",
-            "font": dict(color="white", size=18)
+            "font": dict(size=18)
         },
         xaxis=dict(
             title="RS-Ratio",
             showgrid=True,
             zeroline=True,
+            showline=True,
+            mirror=True,
+            ticklen=0,
             zerolinecolor="black",
             range=x_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white", size=16),
-            tickfont=dict(color="white"),
+            titlefont=dict(size=16),
             showspikes=False,
         ),
         yaxis=dict(
             title="<br>RS-Momentum",
             showgrid=True,
             zeroline=True,
+            showline=True,
+            mirror=True,
+            ticklen=0,
             zerolinecolor="black",
             range=y_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white", size=16),
-            tickfont=dict(color="white"),
+            titlefont=dict(size=16),
             side="left",
             title_standoff=5,
         ),
         plot_bgcolor="rgba(255,255,255,1)",
-        paper_bgcolor="rgba(0,0,0,5)",
         shapes=[
             go.layout.Shape(
                 type="rect",
@@ -556,8 +559,8 @@ def _create_figure_with_tails(
                     color="Black",
                     width=1,
                 ),
-            fillcolor="rgba(0,0,0,0)",
-            layer="above",
+                fillcolor="rgba(0,0,0,0)",
+                layer="above",
             ),
         ],
         annotations=[
@@ -620,7 +623,6 @@ def _create_figure_with_tails(
         ),
         dragmode="pan",
         hovermode="closest",
-        hoverlabel=dict(font=dict(color="white")),
         updatemenus = [{
             "buttons": [{
                 "args": [None, {"frame": {"duration": 500, "redraw": False}, "fromcurrent": True, "transition": {"duration": 500, "easing": "linear"}}],
@@ -634,7 +636,11 @@ def _create_figure_with_tails(
             "x": -0.025,
             "xanchor": "left",
             "y": 0,
-            "yanchor": "top"
+            "yanchor": "top",
+            "bgcolor": "#444444",  # Light gray background
+            "bordercolor": "#CCCCCC",  # Black border
+            "borderwidth": 2,  # Border width in pixels
+            "font": {"color": "#FFFFFF"},  # White text
         }],
         sliders=[{
             "active": 0,
@@ -738,33 +744,36 @@ def _create_figure(
             ),
             "x": 0.5,
             "xanchor": "center",
-            "font": dict(color="white", size=20)
+            "font": dict(size=20)
         },
         xaxis=dict(
             title="RS-Ratio",
             showgrid=True,
             zeroline=True,
+            showline=True,
+            mirror=True,
+            ticklen=0,
             zerolinecolor="black",
             range=x_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white", size=16),
-            tickfont=dict(color="white"),
+            titlefont=dict(size=16),
             showspikes=False,
         ),
         yaxis=dict(
             title="<br>RS-Momentum",
             showgrid=True,
             zeroline=True,
+            showline=True,
+            mirror=True,
+            ticklen=0,
             zerolinecolor="black",
             range=y_range,
             gridcolor="lightgrey",
-            titlefont=dict(color="white", size=16),
-            tickfont=dict(color="white"),
+            titlefont=dict(size=16),
             side="left",
             title_standoff=5,
         ),
         plot_bgcolor="rgba(255,255,255,1)",
-        paper_bgcolor="rgba(0,0,0,5)",
         shapes=[
             go.layout.Shape(
                 type="rect",
@@ -894,7 +903,6 @@ def _create_figure(
         ),
         dragmode="pan",
         hovermode="x unified",
-        hoverlabel=dict(font=dict(color="white")),
     )
 
     fig = go.Figure(data=traces, layout=layout)
