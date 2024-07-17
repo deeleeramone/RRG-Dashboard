@@ -11,7 +11,7 @@ from warnings import warn
 import numpy as np
 from openbb_charting.core.openbb_figure import OpenBBFigure
 from openbb_core.app.command_runner import CommandRunner
-from openbb_core.app.model.charts.chart import Chart, ChartFormat
+from openbb_core.app.model.charts.chart import Chart
 from openbb_core.app.model.obbject import OBBject
 from openbb_core.app.utils import basemodel_to_df, df_to_basemodel
 from openbb_core.provider.abstract.data import Data
@@ -1254,8 +1254,7 @@ class RelativeRotation(OBBject):
             external=True,
         )
         content = fig.to_plotly_json()
-        format = ChartFormat.plotly
-        chart = Chart(content=content, format=format, fig=fig)
+        chart = Chart(content=content, format="plotly", fig=fig)
         self.chart = chart
         self.provider = self.results.provider  # type: ignore
 
