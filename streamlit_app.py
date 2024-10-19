@@ -238,7 +238,7 @@ with st.expander("About"):
 
         A Relative Rotation Graph is a study of the Relative Strength Ratio vs. Relative Strength Momentum against a
         benchmark. They are lagging indicators and are typically used for comparing sector or index
-        cconstituents.
+        constituents.
 
         The Relative Strength Ratio is the price (volume or realized volatility) of the asset divided by the
         benchmark.
