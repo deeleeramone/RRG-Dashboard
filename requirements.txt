@@ -1,3 +1,4 @@
+pip>=25.0.0
 openbb-cboe>=1.4.0 ; python_version >= "3.9" and python_version < "3.13"
 openbb-charting>=2.3.1 ; python_version >= "3.9" and python_version < "3.13"
 openbb-core>=1.4.0 ; python_version >= "3.9" and python_version < "3.13"
