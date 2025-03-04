@@ -219,7 +219,6 @@ if not st.session_state.first_run and st.session_state.rrg_data is not None:
         st.session_state.fig = fig
         st.plotly_chart(
             st.session_state.fig,
-            use_container_width=True,
             config={
                 "scrollZoom": True,
                 "displaylogo": False,
