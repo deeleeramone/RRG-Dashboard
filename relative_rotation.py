@@ -81,6 +81,7 @@ color_sequence = [
     "#b15928",
 ]
 
+
 async def get_data(
     symbols: List[str],
     benchmark: str,
@@ -120,7 +121,7 @@ async def get_data(
         start_date = (datetime.now() - timedelta(weeks=backfill)).date()
         end_date = datetime.now().date()
     target_column = "volume" if study == "volume" else "close"
-    tickers = symbols+ [benchmark]
+    tickers = symbols + [benchmark]
     runner = CommandRunner()
     try:
         _data = await runner.run(
@@ -129,12 +130,12 @@ async def get_data(
                 "provider": provider,
             },
             standard_params={
-                "symbol" : ",".join(tickers),
+                "symbol": ",".join(tickers),
                 "start_date": start_date,
                 "end_date": end_date,
                 "interval": "1d",
             },
-            extra_params={"use_cache": False}
+            extra_params={"use_cache": False} if provider == "cboe" else {},
         )  # type: ignore
         data = _data.to_df().pivot(columns="symbol", values=target_column)
     except Exception as e:
@@ -153,11 +154,11 @@ def absolute_maximum_scale(data: Series) -> Series:
 
 
 def min_max_scaling(data: Series) -> Series:
-    """"Min/Max ScalingNormalization Method"""
+    """ "Min/Max ScalingNormalization Method"""
     return (data - data.min()) / (data.max() - data.min())
 
 
-def z_score_standardization(data:  Series) -> Series:
+def z_score_standardization(data: Series) -> Series:
     """Z-Score Standardization Method."""
     return (data - data.mean()) / data.std()
 
@@ -182,7 +183,11 @@ def normalize(data: DataFrame, method: Literal["z", "m", "a"] = "z") -> DataFram
         Normalized DataFrame.
     """
 
-    methods = {"z": z_score_standardization, "m": min_max_scaling, "a": absolute_maximum_scale}
+    methods = {
+        "z": z_score_standardization,
+        "m": min_max_scaling,
+        "a": absolute_maximum_scale,
+    }
 
     df = data.copy()
 
@@ -249,7 +254,9 @@ def standard_deviation(
     return results
 
 
-def calculate_momentum(data: Series, long_period: int = 252, short_period: int = 21) -> Series:
+def calculate_momentum(
+    data: Series, long_period: int = 252, short_period: int = 21
+) -> Series:
     """
     Momentum is calculated as the log trailing 12-month return minus trailing one-month return.
     Higher values indicate larger, positive momentum exposure.
@@ -278,7 +285,10 @@ def calculate_momentum(data: Series, long_period: int = 252, short_period: int =
 
     return data
 
-def get_momentum(data: DataFrame,  long_period: int = 252, short_period: int = 21) -> DataFrame:
+
+def get_momentum(
+    data: DataFrame, long_period: int = 252, short_period: int = 21
+) -> DataFrame:
     """
     Calculate the Relative-Strength Momentum Indicator.  Takes the Relative Strength Ratio as the input.
 
@@ -338,7 +348,7 @@ def process_data(
     benchmark_data: DataFrame,
     long_period: int = 252,
     short_period: int = 21,
-    normalize_method: Literal["z", "m", "a"] = "z"
+    normalize_method: Literal["z", "m", "a"] = "z",
 ) -> Tuple[DataFrame, DataFrame]:
     """
     Process the raw data into normalized indicator values.
@@ -368,13 +378,14 @@ def process_data(
 
     return normalized_ratio, normalized_momentum
 
+
 def _create_figure_with_tails(
     ratios_data: DataFrame,
     momentum_data: DataFrame,
     study: str,
     benchmark_symbol: str,
     tail_periods: int,
-    tail_interval: Literal["week", "month"]
+    tail_interval: Literal["week", "month"],
 ):
     """Create the Plotly Figure Object with Tails."""
 
@@ -383,7 +394,7 @@ def _create_figure_with_tails(
     tail_dict = {"week": "W", "month": "M"}
 
     ratios_data.index = to_datetime(ratios_data.index)
-    ratios_data =ratios_data.resample(tail_dict[tail_interval]).last()
+    ratios_data = ratios_data.resample(tail_dict[tail_interval]).last()
     momentum_data.index = to_datetime(momentum_data.index)
     momentum_data = momentum_data.resample(tail_dict[tail_interval]).last()
     ratios_data = ratios_data.iloc[-tail_periods:]
@@ -398,7 +409,6 @@ def _create_figure_with_tails(
     y_min = momentum_data.min().min()
     y_max = momentum_data.max().max()
 
-
     frames = []
     x_data = ratios_data
     y_data = momentum_data
@@ -407,8 +417,8 @@ def _create_figure_with_tails(
         frame_data = []
 
         for j, symbol in enumerate(symbols):
-            x_frame_data = x_data[symbol].iloc[:i + 1]
-            y_frame_data = y_data[symbol].iloc[:i + 1]
+            x_frame_data = x_data[symbol].iloc[: i + 1]
+            y_frame_data = y_data[symbol].iloc[: i + 1]
             name = symbol.upper().replace("^", "").replace(":US", "")
             special_name = "-" in name or len(name) > 7
             marker_size = 34 if special_name else 30
@@ -417,16 +427,17 @@ def _create_figure_with_tails(
                 y=y_frame_data,
                 mode="markers+lines",
                 line=dict(color=color_sequence[j], width=2, dash="dash"),
-                marker=dict(size=5, color=color_sequence[j], line=dict(color="black", width=1)),
+                marker=dict(
+                    size=5, color=color_sequence[j], line=dict(color="black", width=1)
+                ),
                 showlegend=False,
                 opacity=0.3,
                 name=name,
                 text=name,
-                hovertemplate=
-                "<b>%{fullData.name}</b>: " +
-                "RS-Ratio: %{x:.4f}, " +
-                "RS-Momentum: %{y:.4f}" +
-                "<extra></extra>",
+                hovertemplate="<b>%{fullData.name}</b>: "
+                + "RS-Ratio: %{x:.4f}, "
+                + "RS-Momentum: %{y:.4f}"
+                + "<extra></extra>",
                 hoverlabel=dict(font_size=10),
             )
 
@@ -437,9 +448,17 @@ def _create_figure_with_tails(
                 name=name,
                 text=name,
                 textposition="middle center",
-                textfont=dict(size=10, color="black") if len(symbol) < 4 else dict(size=7, color="black"),
+                textfont=(
+                    dict(size=10, color="black")
+                    if len(symbol) < 4
+                    else dict(size=7, color="black")
+                ),
                 line=dict(color=color_sequence[j], width=2, dash="dash"),
-                marker=dict(size=marker_size, color=color_sequence[j], line=dict(color="black", width=1)),
+                marker=dict(
+                    size=marker_size,
+                    color=color_sequence[j],
+                    line=dict(color="black", width=1),
+                ),
                 opacity=0.9,
                 showlegend=False,
                 hovertemplate="<b>%{fullData.name}</b>: RS-Ratio: %{x:.4f}, RS-Momentum: %{y:.4f}<extra></extra>",
@@ -447,10 +466,10 @@ def _create_figure_with_tails(
 
             frame_data.extend([line_frame_trace, marker_frame_trace])
 
-        frames.append(go.Frame(data=frame_data, name=f'Frame {i}'))
+        frames.append(go.Frame(data=frame_data, name=f"Frame {i}"))
 
     # Define the initial trace for the figure
-    initial_trace = frames[0]['data']
+    initial_trace = frames[0]["data"]
 
     padding = 0.1
     y_range = [y_min - padding * abs(y_min) - 0.3, y_max + padding * abs(y_max) + 0.3]
@@ -464,7 +483,7 @@ def _create_figure_with_tails(
             ),
             "x": 0.5,
             "xanchor": "center",
-            "font": dict(size=18)
+            "font": dict(size=18),
         },
         xaxis=dict(
             title="RS-Ratio",
@@ -623,50 +642,69 @@ def _create_figure_with_tails(
         ),
         dragmode="pan",
         hovermode="closest",
-        updatemenus = [{
-            "buttons": [{
-                "args": [None, {"frame": {"duration": 500, "redraw": False}, "fromcurrent": True, "transition": {"duration": 500, "easing": "linear"}}],
-                "label": "Play",
-                "method": "animate"
-            }],
-            "direction": "left",
-            "pad": {"r": 0, "t": 75},
-            "showactive": False,
-            "type": "buttons",
-            "x": -0.025,
-            "xanchor": "left",
-            "y": 0,
-            "yanchor": "top",
-            "bgcolor": "#444444",  # Light gray background
-            "bordercolor": "#CCCCCC",  # Black border
-            "borderwidth": 2,  # Border width in pixels
-            "font": {"color": "#FFFFFF"},  # White text
-        }],
-        sliders=[{
-            "active": 0,
-            "yanchor": "top",
-            "xanchor": "center",
-            "currentvalue": {
-                "font": {"size": 16},
-                "prefix": "Date: ",
-                "visible": True,
-                "xanchor": "right",
-            },
-            "transition": {"duration": 300, "easing": "cubic-in-out"},
-            "pad": {"b": 10, "t": 50},
-            "len": 0.9,
-            "x": 0.5,
-            "y": 0,
-            "steps": [{
-                "label": f"{x_data.index[i].strftime('%Y-%m-%d')}",
-                "method": "animate",
-                "args": [[f'Frame {i}'], {
-                    "mode": "immediate",
-                    "transition": {"duration": 300},
-                    "frame": {"duration": 300, "redraw": False},
-                }],
-            } for i in range(len(x_data.index))]
-        }],
+        updatemenus=[
+            {
+                "buttons": [
+                    {
+                        "args": [
+                            None,
+                            {
+                                "frame": {"duration": 500, "redraw": False},
+                                "fromcurrent": True,
+                                "transition": {"duration": 500, "easing": "linear"},
+                            },
+                        ],
+                        "label": "Play",
+                        "method": "animate",
+                    }
+                ],
+                "direction": "left",
+                "pad": {"r": 0, "t": 75},
+                "showactive": False,
+                "type": "buttons",
+                "x": -0.025,
+                "xanchor": "left",
+                "y": 0,
+                "yanchor": "top",
+                "bgcolor": "#444444",  # Light gray background
+                "bordercolor": "#CCCCCC",  # Black border
+                "borderwidth": 2,  # Border width in pixels
+                "font": {"color": "#FFFFFF"},  # White text
+            }
+        ],
+        sliders=[
+            {
+                "active": 0,
+                "yanchor": "top",
+                "xanchor": "center",
+                "currentvalue": {
+                    "font": {"size": 16},
+                    "prefix": "Date: ",
+                    "visible": True,
+                    "xanchor": "right",
+                },
+                "transition": {"duration": 300, "easing": "cubic-in-out"},
+                "pad": {"b": 10, "t": 50},
+                "len": 0.9,
+                "x": 0.5,
+                "y": 0,
+                "steps": [
+                    {
+                        "label": f"{x_data.index[i].strftime('%Y-%m-%d')}",
+                        "method": "animate",
+                        "args": [
+                            [f"Frame {i}"],
+                            {
+                                "mode": "immediate",
+                                "transition": {"duration": 300},
+                                "frame": {"duration": 300, "redraw": False},
+                            },
+                        ],
+                    }
+                    for i in range(len(x_data.index))
+                ],
+            }
+        ],
     )
 
     # Create the figure and add the initial trace
@@ -688,9 +726,17 @@ def _create_figure(
         date = date.strftime("%Y-%m-%d") if isinstance(date, dateType) else date  # type: ignore
         if date not in ratios_data.index:
             warn(f"Date {date} not found in data, using the last available date.")
-            date = ratios_data.index[-1].strftime("%Y-%m-%d") if isinstance(date, dateType) else ratios_data.index[-1]
+            date = (
+                ratios_data.index[-1].strftime("%Y-%m-%d")
+                if isinstance(date, dateType)
+                else ratios_data.index[-1]
+            )
     if date is None:
-        date = ratios_data.index[-1].strftime("%Y-%m-%d") if isinstance(date, dateType) else ratios_data.index[-1]
+        date = (
+            ratios_data.index[-1].strftime("%Y-%m-%d")
+            if isinstance(date, dateType)
+            else ratios_data.index[-1]
+        )
 
     # Select a single row from each dataframe
     row_x = ratios_data.loc[date]
@@ -719,14 +765,17 @@ def _create_figure(
             text=[marker_name],
             textposition="middle center",
             textfont=dict(size=10 if len(marker_name) < 4 else 8, color="black"),
-            marker=dict(size=marker_size, color=color_sequence[i % len(color_sequence)], line=dict(color="black", width=1)),
+            marker=dict(
+                size=marker_size,
+                color=color_sequence[i % len(color_sequence)],
+                line=dict(color="black", width=1),
+            ),
             name=column_name,
             showlegend=False,
-            hovertemplate=
-            "<b>%{text}</b>: " +
-            "RS-Ratio: %{x:.4f}, " +
-            "RS-Momentum: %{y:.4f}" +
-            "<extra></extra>",
+            hovertemplate="<b>%{text}</b>: "
+            + "RS-Ratio: %{x:.4f}, "
+            + "RS-Momentum: %{y:.4f}"
+            + "<extra></extra>",
         )
         # Add the trace to the list
         traces.append(trace)
@@ -734,7 +783,6 @@ def _create_figure(
     padding = 0.1
     y_range = [y_min - padding * abs(y_min) - 0.3, y_max + padding * abs(y_max)]
     x_range = [x_min - padding * abs(x_min), x_max + padding * abs(x_max)]
-
 
     layout = go.Layout(
         title={
@@ -744,7 +792,7 @@ def _create_figure(
             ),
             "x": 0.5,
             "xanchor": "center",
-            "font": dict(size=20)
+            "font": dict(size=20),
         },
         xaxis=dict(
             title="RS-Ratio",
@@ -839,8 +887,8 @@ def _create_figure(
                     color="Black",
                     width=1,
                 ),
-            fillcolor="rgba(0,0,0,0)",
-            layer="above",
+                fillcolor="rgba(0,0,0,0)",
+                layer="above",
             ),
         ],
         annotations=[
@@ -932,7 +980,6 @@ class RelativeRotationData(Data):
     rs_ratios: Optional[List[Data]] = None
     rs_momentum: Optional[List[Data]] = None
 
-
     def show(
         self,
         date: Optional[dateType] = None,
@@ -951,23 +998,26 @@ class RelativeRotationData(Data):
             show_tails = False
         if show_tails is False:
             fig = _create_figure(
-                ratios_data = ratios_data,
-                momentum_data = momentum_data,
-                benchmark_symbol =self.benchmark,
+                ratios_data=ratios_data,
+                momentum_data=momentum_data,
+                benchmark_symbol=self.benchmark,
                 date=date if date is not None else self.date,
                 study=self.study,
             )
         if show_tails is True:
             fig = _create_figure_with_tails(
-                ratios_data = ratios_data,
-                momentum_data = momentum_data,
-                benchmark_symbol =self.benchmark,
+                ratios_data=ratios_data,
+                momentum_data=momentum_data,
+                benchmark_symbol=self.benchmark,
                 study=self.study,
-                tail_periods= self.tail_periods if tail_periods is None else tail_periods,  # type: ignore
-                tail_interval= self.tail_interval if tail_interval is None else tail_interval,
+                tail_periods=self.tail_periods if tail_periods is None else tail_periods,  # type: ignore
+                tail_interval=(
+                    self.tail_interval if tail_interval is None else tail_interval
+                ),
             )
         return (
-            OpenBBFigure(fig, create_backend=True).show() if external is False  # type: ignore
+            OpenBBFigure(fig, create_backend=True).show()
+            if external is False  # type: ignore
             else OpenBBFigure(fig, create_backend=True)  # type: ignore
         )
 
@@ -984,7 +1034,7 @@ async def create(
     normalize_method: Optional[Literal["z", "m", "a"]] = "z",
     tail_periods: Optional[int] = 30,
     tail_interval: Literal["week", "month"] = "week",
-    provider:Optional[str] = None,
+    provider: Optional[str] = None,
 ):
     """
     Create an instance of RelativeRotationData with provided data or a list of symbols and the benchmark.
@@ -1014,14 +1064,11 @@ async def create(
             normalize_method=normalize_method,
             tail_periods=tail_periods,
             tail_interval=tail_interval,
-            provider=provider
+            provider=provider,
         )
         await _fetch_data(self)
 
-    if (
-        isinstance(symbols, Data)
-        and isinstance(benchmark, Data)
-    ):
+    if isinstance(symbols, Data) and isinstance(benchmark, Data):
         symbols = basemodel_to_df(symbols).set_index("date")
         benchmark = basemodel_to_df(benchmark).set_index("date")
 
@@ -1036,7 +1083,6 @@ async def create(
             benchmark = DataFrame(benchmark).set_index("date")
         except ValueError:
             pass
-
 
     if isinstance(benchmark, Series):
         benchmark = benchmark.to_frame()
@@ -1078,7 +1124,8 @@ async def create(
     self.symbols_data = df_to_basemodel(self.symbols_data.reset_index())  # type: ignore
     self.benchmark_data = df_to_basemodel(self.benchmark_data.reset_index())  # type: ignore
 
-    return self # type: ignore
+    return self  # type: ignore
+
 
 async def _fetch_data(self):
     """Fetch the data."""
@@ -1086,30 +1133,31 @@ async def _fetch_data(self):
         warn("Provider was not specified. Using default provider: yfinance.")
         self.provider = "yfinance"
     df1, df2 = await get_data(
-        symbols = self.symbols,
-        benchmark = self.benchmark,
-        study = self.study,
-        date = self.date,
+        symbols=self.symbols,
+        benchmark=self.benchmark,
+        study=self.study,
+        date=self.date,
         provider=self.provider,
         tail_periods=self.tail_periods,
-        tail_interval=self.tail_interval
+        tail_interval=self.tail_interval,
     )
-    self.symbols_data =  df1
+    self.symbols_data = df1
     self.benchmark_data = df2
     return self
+
 
 async def _process_data(self):
     """Process the data."""
     if self.study == "volatility":
         self.symbols_data = standard_deviation(
             self.symbols_data,
-            window = self.window,
-            trading_periods = self.trading_periods,
+            window=self.window,
+            trading_periods=self.trading_periods,
         )
         self.benchmark_data = standard_deviation(
             self.benchmark_data,
-            window = self.window,
-            trading_periods = self.trading_periods,
+            window=self.window,
+            trading_periods=self.trading_periods,
         )
     ratios, momentum = process_data(
         self.symbols_data,
@@ -1142,6 +1190,7 @@ SPDRS = [
     "XLY",
     "XLRE",
 ]
+
 
 class RelativeRotation(OBBject):
     """
