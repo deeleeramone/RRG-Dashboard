@@ -5,4 +5,5 @@ openbb-core>=1.4.0 ; python_version >= "3.9" and python_version < "3.13"
 openbb-index>=1.4.0 ; python_version >= "3.9" and python_version < "3.13"
 openbb-tmx>=1.3.0 ; python_version >= "3.9" and python_version < "3.13"
 openbb-yfinance>=1.4.1 ; python_version >= "3.9" and python_version < "3.13"
+openbb-equity >= 1.4.0 ; python_version >= "3.9" and python_version < "3.13"
 streamlit
