@@ -191,9 +191,12 @@ if st.session_state.button_clicked:
                 " Please check if the symbols are correct and available at the source."
                 " Volume data may not exist for most indexes, for example."
             )
-            st.write(str(Exception.args[0]))
         if input_string == "" or benchmark_input == "":
             st.write("Please enter a list of symbols and a benchmark.")
+        exc = Exception.args
+        st.write(exc)
+
+        raise Exception
 
 
 main_chart = st.expander("Relative Rotation Graph", expanded=True)
