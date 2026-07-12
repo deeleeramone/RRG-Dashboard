@@ -17,10 +17,6 @@ st.set_page_config(
 symbols = []
 benchmark = ""
 STUDY_CHOICES = ["Price", "Volume", "Volatility"]
-SOURCE_CHOICES = ["Yahoo Finance", "Cboe"]
-source_input = "Yahoo Finance"
-source_dict = {"Yahoo Finance": "yfinance", "Cboe": "cboe"}
-source = source_dict[source_input]
 window_input = 21
 study = "price"
 short_period = 21
@@ -80,8 +76,6 @@ body {
 
 st.sidebar.header("Relative Rotation Graph")
 
-with st.sidebar:
-    source_input = st.selectbox("Data Source", SOURCE_CHOICES, index=0, key="source")
 r2c1, r2c2 = st.sidebar.columns([1, 1])
 
 with r2c1:
@@ -161,7 +155,6 @@ tail_interval = tail_interval_input.lower()
 window = window_input
 trading_periods = trading_periods_input
 date = date_input
-source = source_dict[source_input]
 
 if st.session_state.button_clicked:
     try:
@@ -177,7 +170,6 @@ if st.session_state.button_clicked:
                 trading_periods=trading_periods,
                 tail_periods=tail_periods,
                 tail_interval=tail_interval,
-                provider=source,
             )
         )
         st.session_state.rrg_data = rrg_data
@@ -247,27 +239,26 @@ if not st.session_state.first_run and st.session_state.rrg_data is not None:
         )
 
     with st.expander("Study Data Table", expanded=False):
+        _results = st.session_state.rrg_data.results
         symbols_data = (
-            basemodel_to_df(st.session_state.rrg_data.symbols_data).join(
-                basemodel_to_df(st.session_state.rrg_data.benchmark_data)[
-                    st.session_state.rrg_data.benchmark
-                ]
+            basemodel_to_df(_results.symbols_data).join(
+                basemodel_to_df(_results.benchmark_data)[_results.benchmark]
             )
         ).set_index("date")
         symbols_data.index = pd.to_datetime(symbols_data.index).strftime("%Y-%m-%d")
         st.dataframe(symbols_data)
 
     with st.expander("Relative Strength Ratio Table", expanded=False):
-        ratios_data = basemodel_to_df(st.session_state.rrg_data.rs_ratios).set_index(
-            "date"
-        )
+        ratios_data = basemodel_to_df(
+            st.session_state.rrg_data.results.rs_ratios
+        ).set_index("date")
         ratios_data.index = pd.to_datetime(ratios_data.index).strftime("%Y-%m-%d")
         st.dataframe(ratios_data)
 
     with st.expander("Relative Strength Momentum Table", expanded=False):
-        ratios_data = basemodel_to_df(st.session_state.rrg_data.rs_momentum).set_index(
-            "date"
-        )
+        ratios_data = basemodel_to_df(
+            st.session_state.rrg_data.results.rs_momentum
+        ).set_index("date")
         ratios_data.index = pd.to_datetime(ratios_data.index).strftime("%Y-%m-%d")
         st.dataframe(ratios_data)
 
@@ -291,7 +282,7 @@ with st.expander("About"):
         Realized volatility is calculated as the annualized standard deviation over a trailing 1-month period.
         The default values of 252 and 21 can be changed in the sidebar.
 
-        All calculations are daily closing values from the source selected in the sidebar. It should not be assumed
+        All calculations are daily closing values sourced from Yahoo Finance. It should not be assumed
         that volume represents 100% market coverage. This dashboard is for demonstration purposes only and
         should not be used to make inferences or investment decisions.
     """
